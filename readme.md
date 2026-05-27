@@ -76,3 +76,6 @@ rotula-ia/
 - Código Alimentario Argentino (CAA)
 - Ley 27642 — Etiquetado frontal (sellos octagonales)
 - Resolución ANMAT 109/2023 — Alérgenos
+
+## Contacto
+- Acá van los contactos
