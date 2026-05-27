@@ -11,6 +11,7 @@ spring:
       connection-timeout: 30000
 
   jpa:
+    open-in-view: false          # Libera conexiones al terminar el service layer, no al terminar el request
     hibernate:
       ddl-auto: validate        # Flyway maneja el schema, Hibernate solo valida
     show-sql: false
