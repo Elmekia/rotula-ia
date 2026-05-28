@@ -25,6 +25,12 @@ public class GlobalExceptionHandler {
         return Map.of("error", e.getMessage());
     }
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleNotFound(ResourceNotFoundException e) {
+        return Map.of("error", e.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, Object> handleValidation(MethodArgumentNotValidException e) {
