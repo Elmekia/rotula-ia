@@ -13,7 +13,11 @@ export function Header() {
   const location  = useLocation()
   const { user, logout } = useAuthStore()
 
-  const title = PAGE_TITLES[location.pathname] ?? 'RotulaIA'
+  // /products/:id → show "Productos" as title (detail page has its own breadcrumb)
+  const isProductDetail = /^\/products\/[^/]+$/.test(location.pathname)
+  const title = isProductDetail
+    ? 'Productos'
+    : (PAGE_TITLES[location.pathname] ?? 'RotulaIA')
 
   function handleLogout() {
     logout()

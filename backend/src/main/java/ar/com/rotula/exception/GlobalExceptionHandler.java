@@ -31,6 +31,12 @@ public class GlobalExceptionHandler {
         return Map.of("error", e.getMessage());
     }
 
+    @ExceptionHandler(PercentageSumExceededException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public Map<String, String> handlePercentageSum(PercentageSumExceededException e) {
+        return Map.of("error", e.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, Object> handleValidation(MethodArgumentNotValidException e) {

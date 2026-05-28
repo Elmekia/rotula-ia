@@ -4,6 +4,7 @@ import { AppLayout } from './components/layout/AppLayout'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { Products } from './pages/Products'
+import { ProductDetail } from './pages/ProductDetail'
 import { Labels } from './pages/Labels'
 
 export default function App() {
@@ -16,9 +17,10 @@ export default function App() {
         {/* Rutas protegidas — redirigen a /login si no hay token */}
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/products"  element={<Products />} />
-            <Route path="/labels"    element={<Labels />} />
+            <Route path="/dashboard"       element={<Dashboard />} />
+            <Route path="/products"        element={<Products />} />
+            <Route path="/products/:id"    element={<ProductDetail />} />
+            <Route path="/labels"          element={<Labels />} />
           </Route>
         </Route>
 
