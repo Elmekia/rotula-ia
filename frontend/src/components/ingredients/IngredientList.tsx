@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, AlertTriangle } from 'lucide-react'
+import { Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react'
 import { ingredientsApi } from '../../lib/ingredientsApi'
 import { detectAllergen } from '../../lib/allergenDetector'
 import { useToastStore } from '../../store/toastStore'
@@ -18,8 +18,8 @@ export function IngredientList({ product }: Props) {
   const qc = useQueryClient()
   const { addToast } = useToastStore()
 
-  const [formOpen, setFormOpen]     = useState(false)
-  const [editTarget, setEditTarget] = useState<Ingredient | null>(null)
+  const [formOpen, setFormOpen]         = useState(false)
+  const [editTarget, setEditTarget]     = useState<Ingredient | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Ingredient | null>(null)
 
   // ── Query ────────────────────────────────────────────────────────────────
@@ -69,29 +69,9 @@ export function IngredientList({ product }: Props) {
     },
   })
 
-  /** Swaps sort_order between ingredient at index i and i+delta. */
-  const reorderMut = useMutation({
-    mutationFn: async ({ a, b }: { a: Ingredient; b: Ingredient }) => {
-      await Promise.all([
-        ingredientsApi.update(a.id, { ...a, sortOrder: b.sortOrder, allergen: a.allergen }),
-        ingredientsApi.update(b.id, { ...b, sortOrder: a.sortOrder, allergen: b.allergen }),
-      ])
-    },
-    onSuccess() {
-      qc.invalidateQueries({ queryKey: ['ingredients', product.id] })
-    },
-    onError() {
-      addToast('No se pudo reordenar', 'error')
-    },
-  })
-
   // ── Computed ──────────────────────────────────────────────────────────────
-  const totalPercentage = ingredients.reduce((sum, i) => sum + i.percentage, 0)
-  const nextSortOrder   = ingredients.length > 0
-    ? Math.max(...ingredients.map((i) => i.sortOrder)) + 1
-    : 0
-
-  const isSubmitting = createMut.isPending || updateMut.isPending
+  const totalWeight   = ingredients.reduce((sum, i) => sum + i.weightGrams, 0)
+  const isSubmitting  = createMut.isPending || updateMut.isPending
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   function handleFormSubmit(req: IngredientRequest) {
@@ -107,13 +87,6 @@ export function IngredientList({ product }: Props) {
     setFormOpen(true)
   }
 
-  function handleReorder(idx: number, direction: 'up' | 'down') {
-    const sorted = [...ingredients]
-    const targetIdx = direction === 'up' ? idx - 1 : idx + 1
-    if (targetIdx < 0 || targetIdx >= sorted.length) return
-    reorderMut.mutate({ a: sorted[idx], b: sorted[targetIdx] })
-  }
-
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3">
@@ -122,9 +95,8 @@ export function IngredientList({ product }: Props) {
         <div>
           <h3 className="text-sm font-semibold text-slate-700">Lista de ingredientes</h3>
           {ingredients.length > 0 && (
-            <p className={`text-xs mt-0.5 ${totalPercentage > 100 ? 'text-red-500' : 'text-slate-400'}`}>
-              Suma total: {totalPercentage.toFixed(3)}%
-              {totalPercentage > 100 && ' · supera el 100%'}
+            <p className="text-xs mt-0.5 text-slate-400">
+              Peso total: {totalWeight.toFixed(3)} g · orden por peso descendente
             </p>
           )}
         </div>
@@ -143,11 +115,11 @@ export function IngredientList({ product }: Props) {
         {/* Column headers */}
         <div className="grid grid-cols-12 gap-2 px-4 py-2.5 border-b border-slate-100
                         text-xs font-semibold text-slate-500 uppercase tracking-wide">
-          <span className="col-span-1 text-center">#</span>
           <span className="col-span-4">Nombre</span>
-          <span className="col-span-2">Porcentaje</span>
+          <span className="col-span-2">Peso (g)</span>
+          <span className="col-span-2">%</span>
           <span className="col-span-2">Alérgeno</span>
-          <span className="col-span-3 text-right">Acciones</span>
+          <span className="col-span-2 text-right">Acciones</span>
         </div>
 
         {isLoading ? (
@@ -160,41 +132,28 @@ export function IngredientList({ product }: Props) {
             <p className="text-xs mt-1">Agregá el primero con el botón de arriba</p>
           </div>
         ) : (
-          ingredients.map((ing, idx) => (
+          ingredients.map((ing) => (
             <div
               key={ing.id}
               className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-slate-100 last:border-0
                          items-center hover:bg-slate-50 transition-colors"
             >
-              {/* Order arrows */}
-              <div className="col-span-1 flex flex-col items-center gap-0.5">
-                <button
-                  onClick={() => handleReorder(idx, 'up')}
-                  disabled={idx === 0 || reorderMut.isPending}
-                  className="text-slate-300 hover:text-slate-600 disabled:opacity-20 disabled:cursor-not-allowed"
-                >
-                  <ChevronUp className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => handleReorder(idx, 'down')}
-                  disabled={idx === ingredients.length - 1 || reorderMut.isPending}
-                  className="text-slate-300 hover:text-slate-600 disabled:opacity-20 disabled:cursor-not-allowed"
-                >
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Name */}
+              {/* Nombre */}
               <div className="col-span-4">
                 <span className="text-sm text-slate-800 truncate block">{ing.name}</span>
               </div>
 
-              {/* Percentage */}
+              {/* Peso */}
               <span className="col-span-2 text-sm font-medium text-slate-700">
-                {ing.percentage.toFixed(3)}%
+                {ing.weightGrams.toFixed(3)}
               </span>
 
-              {/* Allergen badge — always re-detected from name per Res. 109/2023 */}
+              {/* Porcentaje calculado */}
+              <span className="col-span-2 text-sm text-slate-500">
+                {ing.percentage.toFixed(1)}%
+              </span>
+
+              {/* Badge alérgeno — re-detectado desde el nombre según Res. 109/2023 */}
               <div className="col-span-2">
                 {detectAllergen(ing.name) ? (
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100
@@ -207,8 +166,8 @@ export function IngredientList({ product }: Props) {
                 )}
               </div>
 
-              {/* Actions */}
-              <div className="col-span-3 flex items-center justify-end gap-1">
+              {/* Acciones */}
+              <div className="col-span-2 flex items-center justify-end gap-1">
                 <button
                   onClick={() => handleOpenEdit(ing)}
                   className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
@@ -233,7 +192,6 @@ export function IngredientList({ product }: Props) {
       {formOpen && (
         <IngredientForm
           ingredient={editTarget}
-          nextSortOrder={nextSortOrder}
           isSubmitting={isSubmitting}
           onSubmit={handleFormSubmit}
           onClose={() => { setFormOpen(false); setEditTarget(null) }}

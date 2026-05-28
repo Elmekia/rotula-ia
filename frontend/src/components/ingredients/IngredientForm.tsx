@@ -8,25 +8,22 @@ import type { Ingredient, IngredientRequest } from '../../types/ingredient'
 
 const schema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio').max(300),
-  percentage: z.coerce
+  weightGrams: z.coerce
     .number({ invalid_type_error: 'Debe ser un número' })
-    .gt(0, 'Debe ser mayor a 0')
-    .max(100, 'No puede superar el 100%'),
+    .gt(0, 'Debe ser mayor a 0'),
   allergen: z.boolean(),
-  sortOrder: z.coerce.number().int().min(0),
 })
 
 type FormValues = z.infer<typeof schema>
 
 interface Props {
   ingredient?: Ingredient | null
-  nextSortOrder: number
   isSubmitting: boolean
   onSubmit: (data: IngredientRequest) => void
   onClose: () => void
 }
 
-export function IngredientForm({ ingredient, nextSortOrder, isSubmitting, onSubmit, onClose }: Props) {
+export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: Props) {
   const {
     register,
     handleSubmit,
@@ -38,42 +35,39 @@ export function IngredientForm({ ingredient, nextSortOrder, isSubmitting, onSubm
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name:      '',
-      percentage: undefined,
-      allergen:  false,
-      sortOrder: nextSortOrder,
+      name:        '',
+      weightGrams: undefined,
+      allergen:    false,
     },
   })
 
-  // Pre-fill when editing
+  // Pre-fill cuando se edita
   useEffect(() => {
     if (ingredient) {
       reset({
-        name:       ingredient.name,
-        percentage: ingredient.percentage,
-        allergen:   ingredient.allergen,
-        sortOrder:  ingredient.sortOrder,
+        name:        ingredient.name,
+        weightGrams: ingredient.weightGrams,
+        allergen:    ingredient.allergen,
       })
     } else {
-      reset({ name: '', percentage: undefined, allergen: false, sortOrder: nextSortOrder })
+      reset({ name: '', weightGrams: undefined, allergen: false })
     }
-  }, [ingredient, nextSortOrder, reset])
+  }, [ingredient, reset])
 
-  // Real-time allergen detection as user types
+  // Detección de alérgeno en tiempo real mientras el usuario escribe
   const nameValue = watch('name')
   useEffect(() => {
     if (!ingredient) {
-      // Only auto-detect for new ingredients; don't override user edits
+      // Solo auto-detecta para ingredientes nuevos; no pisa la edición manual
       setValue('allergen', detectAllergen(nameValue))
     }
   }, [nameValue, ingredient, setValue])
 
   function onValid(values: FormValues) {
     onSubmit({
-      name:       values.name,
-      percentage: values.percentage,
-      allergen:   values.allergen,
-      sortOrder:  values.sortOrder,
+      name:        values.name,
+      weightGrams: values.weightGrams,
+      allergen:    values.allergen,
     })
   }
 
@@ -112,29 +106,21 @@ export function IngredientForm({ ingredient, nextSortOrder, isSubmitting, onSubm
             )}
           </div>
 
-          {/* Porcentaje + Orden */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-600">Porcentaje (%) *</label>
-              <input
-                {...register('percentage')}
-                type="number"
-                step="0.001"
-                placeholder="40.000"
-                className={inputCls(!!errors.percentage)}
-              />
-              {errors.percentage && <p className="text-xs text-red-500">{errors.percentage.message}</p>}
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-600">Orden</label>
-              <input
-                {...register('sortOrder')}
-                type="number"
-                min={0}
-                className={inputCls(!!errors.sortOrder)}
-              />
-              {errors.sortOrder && <p className="text-xs text-red-500">{errors.sortOrder.message}</p>}
-            </div>
+          {/* Peso en gramos */}
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-slate-600">
+              Peso (g) *
+              <span className="ml-1 font-normal text-slate-400">— el % se calcula automáticamente</span>
+            </label>
+            <input
+              {...register('weightGrams')}
+              type="number"
+              step="0.001"
+              min="0.001"
+              placeholder="200.000"
+              className={inputCls(!!errors.weightGrams)}
+            />
+            {errors.weightGrams && <p className="text-xs text-red-500">{errors.weightGrams.message}</p>}
           </div>
 
           {/* Alérgeno (toggle) */}
