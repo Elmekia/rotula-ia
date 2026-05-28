@@ -55,7 +55,9 @@ class ProductControllerIT {
         return new ProductResponse(
                 PRODUCT_ID, TENANT_ID, "Yerba Mate", "Infusiones",
                 new BigDecimal("500.000"), "g", "RNE-001", "RNPA-001",
-                "draft", USER_ID, OffsetDateTime.now(), OffsetDateTime.now()
+                "draft",
+                null, null,   // servingSizeG, crossContamination
+                USER_ID, OffsetDateTime.now(), OffsetDateTime.now()
         );
     }
 
@@ -111,7 +113,8 @@ class ProductControllerIT {
     @WithMockUser
     void create_retorna_201_con_producto() throws Exception {
         ProductRequest req = new ProductRequest(
-                "Galletitas", "Panificados", new BigDecimal("150"), "g", null, null);
+                "Galletitas", "Panificados", new BigDecimal("150"), "g",
+                null, null, null, null);
         when(productService.create(any(ProductRequest.class))).thenReturn(sampleResponse());
 
         mockMvc.perform(post("/products")
@@ -126,7 +129,7 @@ class ProductControllerIT {
     @WithMockUser
     void create_retorna_400_si_nombre_vacio() throws Exception {
         ProductRequest req = new ProductRequest(
-                "", "Cat", new BigDecimal("100"), "g", null, null);
+                "", "Cat", new BigDecimal("100"), "g", null, null, null, null);
 
         mockMvc.perform(post("/products")
                         .with(csrf())
@@ -140,7 +143,7 @@ class ProductControllerIT {
     @WithMockUser
     void create_retorna_400_si_unidad_invalida() throws Exception {
         ProductRequest req = new ProductRequest(
-                "Producto", "Cat", new BigDecimal("100"), "oz", null, null);
+                "Producto", "Cat", new BigDecimal("100"), "oz", null, null, null, null);
 
         mockMvc.perform(post("/products")
                         .with(csrf())
@@ -156,11 +159,14 @@ class ProductControllerIT {
     @WithMockUser
     void update_retorna_producto_modificado() throws Exception {
         ProductRequest req = new ProductRequest(
-                "Yerba Premium", "Infusiones", new BigDecimal("1000"), "g", "RNE-002", null);
+                "Yerba Premium", "Infusiones", new BigDecimal("1000"), "g",
+                "RNE-002", null, null, null);
         ProductResponse updated = new ProductResponse(
                 PRODUCT_ID, TENANT_ID, "Yerba Premium", "Infusiones",
                 new BigDecimal("1000"), "g", "RNE-002", null,
-                "draft", USER_ID, OffsetDateTime.now(), OffsetDateTime.now()
+                "draft",
+                null, null,   // servingSizeG, crossContamination
+                USER_ID, OffsetDateTime.now(), OffsetDateTime.now()
         );
         when(productService.update(eq(PRODUCT_ID), any(ProductRequest.class))).thenReturn(updated);
 
@@ -176,7 +182,7 @@ class ProductControllerIT {
     @WithMockUser
     void update_retorna_404_si_no_existe() throws Exception {
         ProductRequest req = new ProductRequest(
-                "Prod", "Cat", new BigDecimal("100"), "g", null, null);
+                "Prod", "Cat", new BigDecimal("100"), "g", null, null, null, null);
         when(productService.update(eq(PRODUCT_ID), any()))
                 .thenThrow(new ResourceNotFoundException("Producto no encontrado: " + PRODUCT_ID));
 

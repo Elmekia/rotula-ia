@@ -48,7 +48,9 @@ class IngredientControllerIT {
                 new BigDecimal("200.000"),   // weightGrams
                 new BigDecimal("100.000"),   // percentage (calculado)
                 true,
-                OffsetDateTime.now()
+                OffsetDateTime.now(),
+                // nutrition fields (null = no data)
+                null, null, null, null, null, null, null, null
         );
     }
 
@@ -89,7 +91,9 @@ class IngredientControllerIT {
     @Test
     @WithMockUser
     void create_retorna_201() throws Exception {
-        IngredientRequest req = new IngredientRequest("Avena", new BigDecimal("150"), null);
+        IngredientRequest req = new IngredientRequest(
+                "Avena", new BigDecimal("150"), null,
+                null, null, null, null, null, null, null, null);
         when(ingredientService.create(eq(PRODUCT_ID), any())).thenReturn(sampleResponse());
 
         mockMvc.perform(post("/products/{id}/ingredients", PRODUCT_ID)
@@ -103,7 +107,9 @@ class IngredientControllerIT {
     @Test
     @WithMockUser
     void create_retorna_400_si_nombre_vacio() throws Exception {
-        IngredientRequest req = new IngredientRequest("", new BigDecimal("100"), null);
+        IngredientRequest req = new IngredientRequest(
+                "", new BigDecimal("100"), null,
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(post("/products/{id}/ingredients", PRODUCT_ID)
                         .with(csrf())
@@ -117,7 +123,9 @@ class IngredientControllerIT {
     @WithMockUser
     void create_retorna_400_si_peso_invalido() throws Exception {
         // weight_grams = 0 viola @DecimalMin("0.001")
-        IngredientRequest req = new IngredientRequest("Agua", BigDecimal.ZERO, false);
+        IngredientRequest req = new IngredientRequest(
+                "Agua", BigDecimal.ZERO, false,
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(post("/products/{id}/ingredients", PRODUCT_ID)
                         .with(csrf())
@@ -132,14 +140,17 @@ class IngredientControllerIT {
     @Test
     @WithMockUser
     void update_retorna_ingrediente_modificado() throws Exception {
-        IngredientRequest req = new IngredientRequest("Avena integral", new BigDecimal("250"), true);
+        IngredientRequest req = new IngredientRequest(
+                "Avena integral", new BigDecimal("250"), true,
+                null, null, null, null, null, null, null, null);
         IngredientResponse updated = new IngredientResponse(
                 INGREDIENT_ID, PRODUCT_ID, TENANT_ID,
                 "Avena integral",
                 new BigDecimal("250.000"),
                 new BigDecimal("100.000"),
                 true,
-                OffsetDateTime.now()
+                OffsetDateTime.now(),
+                null, null, null, null, null, null, null, null
         );
         when(ingredientService.update(eq(INGREDIENT_ID), any())).thenReturn(updated);
 
@@ -156,7 +167,9 @@ class IngredientControllerIT {
     @Test
     @WithMockUser
     void update_retorna_404_si_no_existe() throws Exception {
-        IngredientRequest req = new IngredientRequest("X", new BigDecimal("10"), false);
+        IngredientRequest req = new IngredientRequest(
+                "X", new BigDecimal("10"), false,
+                null, null, null, null, null, null, null, null);
         when(ingredientService.update(eq(INGREDIENT_ID), any()))
                 .thenThrow(new ResourceNotFoundException("Ingrediente no encontrado: " + INGREDIENT_ID));
 

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, Package } from 'lucide-react'
 import { productsApi } from '../lib/productsApi'
 import { IngredientList } from '../components/ingredients/IngredientList'
+import { LabelAnalysisPanel } from '../components/analysis/LabelAnalysisPanel'
 
 export function ProductDetail() {
   const { id } = useParams<{ id: string }>()
@@ -64,15 +65,23 @@ export function ProductDetail() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-5 border-t border-slate-100">
-          <InfoCell label="Peso neto" value={`${product.netWeight} ${product.weightUnit}`} />
-          <InfoCell label="RNE" value={product.rneNumber ?? '—'} />
-          <InfoCell label="RNPA" value={product.rnpaNumber ?? '—'} />
-          <InfoCell label="Estado" value={STATUS_LABELS[product.status] ?? product.status} />
+          <InfoCell label="Peso neto"    value={`${product.netWeight} ${product.weightUnit}`} />
+          <InfoCell label="Porción"      value={product.servingSizeG ? `${product.servingSizeG} g` : '—'} />
+          <InfoCell label="RNE"          value={product.rneNumber ?? '—'} />
+          <InfoCell label="RNPA"         value={product.rnpaNumber ?? '—'} />
         </div>
       </div>
 
       {/* Ingredients section */}
       <IngredientList product={product} />
+
+      {/* Label analysis section */}
+      <div>
+        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
+          Análisis de rótulo
+        </h3>
+        <LabelAnalysisPanel productId={product.id} />
+      </div>
     </div>
   )
 }

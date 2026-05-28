@@ -57,6 +57,14 @@ public class IngredientService {
                 .name(req.name())
                 .weightGrams(req.weightGrams())
                 .allergen(resolveAllergen(req))
+                .energyKcalPer100g(req.energyKcalPer100g())
+                .proteinsPer100g(req.proteinsPer100g())
+                .carbsPer100g(req.carbsPer100g())
+                .sugarsPer100g(req.sugarsPer100g())
+                .fatTotalPer100g(req.fatTotalPer100g())
+                .fatSatPer100g(req.fatSatPer100g())
+                .fatTransPer100g(req.fatTransPer100g())
+                .sodiumMgPer100g(req.sodiumMgPer100g())
                 .build());
 
         // Calcular % sobre el total actualizado (incluye el ingrediente recién guardado)
@@ -74,6 +82,14 @@ public class IngredientService {
         ingredient.setName(req.name());
         ingredient.setWeightGrams(req.weightGrams());
         ingredient.setAllergen(resolveAllergen(req));
+        ingredient.setEnergyKcalPer100g(req.energyKcalPer100g());
+        ingredient.setProteinsPer100g(req.proteinsPer100g());
+        ingredient.setCarbsPer100g(req.carbsPer100g());
+        ingredient.setSugarsPer100g(req.sugarsPer100g());
+        ingredient.setFatTotalPer100g(req.fatTotalPer100g());
+        ingredient.setFatSatPer100g(req.fatSatPer100g());
+        ingredient.setFatTransPer100g(req.fatTransPer100g());
+        ingredient.setSodiumMgPer100g(req.sodiumMgPer100g());
 
         Ingredient saved = ingredientRepository.save(ingredient);
 
@@ -104,16 +120,7 @@ public class IngredientService {
                         .multiply(new BigDecimal("100"))
                         .setScale(3, RoundingMode.HALF_UP);
 
-        return new IngredientResponse(
-                i.getId(),
-                i.getProductId(),
-                i.getTenantId(),
-                i.getName(),
-                i.getWeightGrams(),
-                pct,
-                AllergenDetector.isAllergen(i.getName()),
-                i.getCreatedAt()
-        );
+        return IngredientResponse.from(i, pct);
     }
 
     /**

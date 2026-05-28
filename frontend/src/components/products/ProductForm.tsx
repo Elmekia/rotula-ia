@@ -6,12 +6,17 @@ import { X } from 'lucide-react'
 import type { Product, ProductRequest } from '../../types/product'
 
 const schema = z.object({
-  name:        z.string().min(1, 'El nombre es obligatorio').max(300),
-  category:    z.string().min(1, 'La categoría es obligatoria').max(100),
-  netWeight:   z.coerce.number({ invalid_type_error: 'Debe ser un número' }).positive('Debe ser mayor a 0'),
-  weightUnit:  z.enum(['kg', 'g', 'l', 'ml', 'u', 'cc'], { errorMap: () => ({ message: 'Unidad inválida' }) }),
-  rneNumber:   z.string().max(20).nullable().optional(),
-  rnpaNumber:  z.string().max(20).nullable().optional(),
+  name:               z.string().min(1, 'El nombre es obligatorio').max(300),
+  category:           z.string().min(1, 'La categoría es obligatoria').max(100),
+  netWeight:          z.coerce.number({ invalid_type_error: 'Debe ser un número' }).positive('Debe ser mayor a 0'),
+  weightUnit:         z.enum(['kg', 'g', 'l', 'ml', 'u', 'cc'], { errorMap: () => ({ message: 'Unidad inválida' }) }),
+  rneNumber:          z.string().max(20).nullable().optional(),
+  rnpaNumber:         z.string().max(20).nullable().optional(),
+  servingSizeG:       z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
+    z.number().positive('Debe ser mayor a 0').nullable().optional()
+  ),
+  crossContamination: z.string().nullable().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -32,12 +37,14 @@ export function ProductForm({ product, isSubmitting, onSubmit, onClose }: Props)
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name:       '',
-      category:   '',
-      netWeight:  undefined,
-      weightUnit: 'g',
-      rneNumber:  '',
-      rnpaNumber: '',
+      name:               '',
+      category:           '',
+      netWeight:          undefined,
+      weightUnit:         'g',
+      rneNumber:          '',
+      rnpaNumber:         '',
+      servingSizeG:       null,
+      crossContamination: '',
     },
   })
 
@@ -45,42 +52,48 @@ export function ProductForm({ product, isSubmitting, onSubmit, onClose }: Props)
   useEffect(() => {
     if (product) {
       reset({
-        name:       product.name,
-        category:   product.category,
-        netWeight:  product.netWeight,
-        weightUnit: product.weightUnit as FormValues['weightUnit'],
-        rneNumber:  product.rneNumber ?? '',
-        rnpaNumber: product.rnpaNumber ?? '',
+        name:               product.name,
+        category:           product.category,
+        netWeight:          product.netWeight,
+        weightUnit:         product.weightUnit as FormValues['weightUnit'],
+        rneNumber:          product.rneNumber ?? '',
+        rnpaNumber:         product.rnpaNumber ?? '',
+        servingSizeG:       product.servingSizeG ?? null,
+        crossContamination: product.crossContamination ?? '',
       })
     } else {
       reset({
-        name:       '',
-        category:   '',
-        netWeight:  undefined,
-        weightUnit: 'g',
-        rneNumber:  '',
-        rnpaNumber: '',
+        name:               '',
+        category:           '',
+        netWeight:          undefined,
+        weightUnit:         'g',
+        rneNumber:          '',
+        rnpaNumber:         '',
+        servingSizeG:       null,
+        crossContamination: '',
       })
     }
   }, [product, reset])
 
   function onValid(values: FormValues) {
     onSubmit({
-      name:       values.name,
-      category:   values.category,
-      netWeight:  values.netWeight,
-      weightUnit: values.weightUnit,
-      rneNumber:  values.rneNumber || null,
-      rnpaNumber: values.rnpaNumber || null,
+      name:               values.name,
+      category:           values.category,
+      netWeight:          values.netWeight,
+      weightUnit:         values.weightUnit,
+      rneNumber:          values.rneNumber || null,
+      rnpaNumber:         values.rnpaNumber || null,
+      servingSizeG:       values.servingSizeG ?? null,
+      crossContamination: values.crossContamination || null,
     })
   }
 
   return (
     /* Backdrop */
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
           <h2 className="text-lg font-semibold text-slate-800">
             {product ? 'Editar producto' : 'Nuevo producto'}
           </h2>
@@ -90,7 +103,7 @@ export function ProductForm({ product, isSubmitting, onSubmit, onClose }: Props)
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit(onValid)} className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit(onValid)} className="overflow-y-auto px-6 py-5 space-y-4">
           {/* Nombre */}
           <Field label="Nombre *" error={errors.name?.message}>
             <input
@@ -132,6 +145,22 @@ export function ProductForm({ product, isSubmitting, onSubmit, onClose }: Props)
             </Field>
           </div>
 
+          {/* Porción */}
+          <Field
+            label="Porción de referencia (g / mL)"
+            hint="Necesario para calcular la tabla nutricional"
+            error={errors.servingSizeG?.message}
+          >
+            <input
+              {...register('servingSizeG')}
+              type="number"
+              step="any"
+              min="0.001"
+              placeholder="Ej. 30"
+              className={inputCls(!!errors.servingSizeG)}
+            />
+          </Field>
+
           {/* RNE / RNPA */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Número RNE" error={errors.rneNumber?.message}>
@@ -149,6 +178,19 @@ export function ProductForm({ product, isSubmitting, onSubmit, onClose }: Props)
               />
             </Field>
           </div>
+
+          {/* Contaminación cruzada */}
+          <Field
+            label="Contaminación cruzada"
+            hint="Nombres de enum separados por coma: MANI, FRUTOS_DE_CASCARA, etc."
+            error={errors.crossContamination?.message}
+          >
+            <input
+              {...register('crossContamination')}
+              placeholder="Ej. MANI, FRUTOS_DE_CASCARA"
+              className={inputCls(!!errors.crossContamination)}
+            />
+          </Field>
 
           {/* Footer */}
           <div className="flex justify-end gap-3 pt-2">
@@ -190,10 +232,18 @@ function inputCls(hasError: boolean) {
   ].join(' ')
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({
+  label, hint, error, children,
+}: {
+  label: string
+  hint?: string
+  error?: string
+  children: React.ReactNode
+}) {
   return (
     <div className="space-y-1">
       <label className="block text-xs font-medium text-slate-600">{label}</label>
+      {hint && <p className="text-xs text-slate-400">{hint}</p>}
       {children}
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>

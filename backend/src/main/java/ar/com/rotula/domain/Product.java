@@ -40,6 +40,22 @@ public class Product {
     @Column(length = 20)
     private String status;
 
+    /**
+     * Tamaño de porción de referencia en gramos (o mL si el producto es líquido).
+     * Utilizado para calcular la tabla nutricional por porción.
+     * Es opcional; si no se informa, no se calcula la tabla nutricional.
+     */
+    @Column(name = "serving_size_g", precision = 8, scale = 2)
+    private BigDecimal servingSizeG;
+
+    /**
+     * Grupos de alérgenos presentes en el ambiente de producción (contaminación cruzada).
+     * Se almacena como nombres del enum {@link AllergenGroup} separados por coma.
+     * Ejemplo: "MANI,FRUTOS_DE_CASCARA"
+     */
+    @Column(name = "cross_contamination")
+    private String crossContamination;
+
     @Column(name = "created_by")
     private UUID createdBy;
 

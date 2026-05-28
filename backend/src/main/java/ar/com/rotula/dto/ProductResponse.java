@@ -16,6 +16,8 @@ public record ProductResponse(
         String rneNumber,
         String rnpaNumber,
         String status,
+        BigDecimal servingSizeG,
+        String crossContamination,
         UUID createdBy,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
@@ -31,6 +33,8 @@ public record ProductResponse(
                 p.getRneNumber(),
                 p.getRnpaNumber(),
                 p.getStatus(),
+                p.getServingSizeG(),
+                p.getCrossContamination(),
                 p.getCreatedBy(),
                 p.getCreatedAt(),
                 p.getUpdatedAt()

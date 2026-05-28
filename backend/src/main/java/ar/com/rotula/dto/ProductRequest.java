@@ -26,5 +26,20 @@ public record ProductRequest(
         String rneNumber,
 
         @Size(max = 20, message = "El número RNPA no puede superar los 20 caracteres")
-        String rnpaNumber
+        String rnpaNumber,
+
+        /**
+         * Tamaño de porción en gramos (o mL para líquidos).
+         * Requerido para calcular la tabla nutricional por porción.
+         * Si no se informa, la tabla nutricional no se calcula.
+         */
+        @Positive(message = "El tamaño de porción debe ser mayor a 0")
+        BigDecimal servingSizeG,
+
+        /**
+         * Grupos de alérgenos presentes por contaminación cruzada.
+         * Nombres del enum AllergenGroup separados por coma.
+         * Ejemplo: "MANI,FRUTOS_DE_CASCARA"
+         */
+        String crossContamination
 ) {}

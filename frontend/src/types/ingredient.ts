@@ -1,4 +1,16 @@
-export interface Ingredient {
+/** Campos nutricionales por 100 g del ingrediente (todos opcionales). */
+export interface IngredientNutrition {
+  energyKcalPer100g: number | null
+  proteinsPer100g:   number | null
+  carbsPer100g:      number | null
+  sugarsPer100g:     number | null
+  fatTotalPer100g:   number | null
+  fatSatPer100g:     number | null
+  fatTransPer100g:   number | null
+  sodiumMgPer100g:   number | null
+}
+
+export interface Ingredient extends IngredientNutrition {
   id: string
   productId: string
   tenantId: string
@@ -11,7 +23,7 @@ export interface Ingredient {
   createdAt: string
 }
 
-export interface IngredientRequest {
+export interface IngredientRequest extends Partial<IngredientNutrition> {
   name: string
   /** Peso del ingrediente en gramos. */
   weightGrams: number
