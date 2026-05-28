@@ -35,7 +35,16 @@ public class IngredientService {
         return ingredientRepository
                 .findByProductIdAndTenantIdOrderBySortOrder(productId, user.getTenantId())
                 .stream()
-                .map(IngredientResponse::from)
+                .map(i -> new IngredientResponse(
+                        i.getId(),
+                        i.getProductId(),
+                        i.getTenantId(),
+                        i.getName(),
+                        i.getPercentage(),
+                        AllergenDetector.isAllergen(i.getName()),   // re-detect on every list load
+                        i.getSortOrder(),
+                        i.getCreatedAt()
+                ))
                 .toList();
     }
 

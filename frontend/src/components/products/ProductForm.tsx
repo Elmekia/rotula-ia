@@ -9,7 +9,7 @@ const schema = z.object({
   name:        z.string().min(1, 'El nombre es obligatorio').max(300),
   category:    z.string().min(1, 'La categoría es obligatoria').max(100),
   netWeight:   z.coerce.number({ invalid_type_error: 'Debe ser un número' }).positive('Debe ser mayor a 0'),
-  weightUnit:  z.enum(['kg', 'g', 'l', 'ml', 'cc'], { errorMap: () => ({ message: 'Unidad inválida' }) }),
+  weightUnit:  z.enum(['kg', 'g', 'l', 'ml', 'u', 'cc'], { errorMap: () => ({ message: 'Unidad inválida' }) }),
   rneNumber:   z.string().max(20).nullable().optional(),
   rnpaNumber:  z.string().max(20).nullable().optional(),
 })
@@ -127,6 +127,7 @@ export function ProductForm({ product, isSubmitting, onSubmit, onClose }: Props)
                 <option value="ml">ml</option>
                 <option value="l">l</option>
                 <option value="cc">cc</option>
+                <option value="u">u (unidades)</option>
               </select>
             </Field>
           </div>

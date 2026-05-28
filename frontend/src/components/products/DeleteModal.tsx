@@ -3,12 +3,15 @@ import type { Product } from '../../types/product'
 
 interface Props {
   product: Product
+  /** Etiqueta del tipo de item. Por defecto: "producto". */
+  itemLabel?: string
   isDeleting: boolean
   onConfirm: () => void
   onCancel: () => void
 }
 
-export function DeleteModal({ product, isDeleting, onConfirm, onCancel }: Props) {
+export function DeleteModal({ product, itemLabel = 'producto', isDeleting, onConfirm, onCancel }: Props) {
+  const title = `Eliminar ${itemLabel}`
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
@@ -16,7 +19,7 @@ export function DeleteModal({ product, isDeleting, onConfirm, onCancel }: Props)
           <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
             <AlertTriangle className="w-6 h-6 text-red-600" />
           </div>
-          <h2 className="text-lg font-semibold text-slate-800">Eliminar producto</h2>
+          <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
           <p className="text-sm text-slate-500">
             ¿Estás seguro que querés eliminar{' '}
             <span className="font-medium text-slate-700">"{product.name}"</span>?
