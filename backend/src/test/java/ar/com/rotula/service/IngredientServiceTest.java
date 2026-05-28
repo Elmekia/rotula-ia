@@ -4,7 +4,6 @@ import ar.com.rotula.domain.Ingredient;
 import ar.com.rotula.domain.Product;
 import ar.com.rotula.dto.IngredientRequest;
 import ar.com.rotula.dto.IngredientResponse;
-import ar.com.rotula.exception.PercentageSumExceededException;
 import ar.com.rotula.exception.ResourceNotFoundException;
 import ar.com.rotula.repository.IngredientRepository;
 import ar.com.rotula.repository.ProductRepository;
@@ -27,7 +26,6 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,7 +39,6 @@ class IngredientServiceTest {
     private static final UUID USER_ID       = UUID.randomUUID();
     private static final UUID PRODUCT_ID    = UUID.randomUUID();
     private static final UUID INGREDIENT_ID = UUID.randomUUID();
-    private static final UUID NO_EXCLUDE    = new UUID(0, 0);
 
     @BeforeEach
     void setupSecurityContext() {
@@ -56,9 +53,8 @@ class IngredientServiceTest {
                 .productId(PRODUCT_ID)
                 .tenantId(TENANT_ID)
                 .name("Harina de trigo")
-                .percentage(new BigDecimal("40.000"))
+                .weightGrams(new BigDecimal("200.000"))
                 .allergen(true)
-                .sortOrder(0)
                 .createdAt(OffsetDateTime.now())
                 .build();
     }
@@ -80,17 +76,45 @@ class IngredientServiceTest {
     // ── findByProduct ────────────────────────────────────────────────────────
 
     @Test
-    void findByProduct_retorna_lista_ordenada() {
+    void findByProduct_retorna_lista_ordenada_con_porcentaje_calculado() {
+        Ingredient ing = sampleIngredient();
         when(productRepository.findByIdAndTenantId(PRODUCT_ID, TENANT_ID))
                 .thenReturn(Optional.of(sampleProduct()));
-        when(ingredientRepository.findByProductIdAndTenantIdOrderBySortOrder(PRODUCT_ID, TENANT_ID))
-                .thenReturn(List.of(sampleIngredient()));
+        when(ingredientRepository.findByProductIdAndTenantIdOrderByWeightGramsDesc(PRODUCT_ID, TENANT_ID))
+                .thenReturn(List.of(ing));
 
         List<IngredientResponse> result = ingredientService.findByProduct(PRODUCT_ID);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).name()).isEqualTo("Harina de trigo");
+        assertThat(result.get(0).weightGrams()).isEqualByComparingTo("200.000");
+        // Ingrediente único → 200/200 * 100 = 100%
+        assertThat(result.get(0).percentage()).isEqualByComparingTo("100.000");
         assertThat(result.get(0).allergen()).isTrue();
+    }
+
+    @Test
+    void findByProduct_calcula_porcentaje_proporcional_con_varios_ingredientes() {
+        Ingredient ing1 = Ingredient.builder()
+                .id(UUID.randomUUID()).productId(PRODUCT_ID).tenantId(TENANT_ID)
+                .name("Harina de trigo").weightGrams(new BigDecimal("300.000"))
+                .allergen(true).createdAt(OffsetDateTime.now()).build();
+        Ingredient ing2 = Ingredient.builder()
+                .id(UUID.randomUUID()).productId(PRODUCT_ID).tenantId(TENANT_ID)
+                .name("Azúcar").weightGrams(new BigDecimal("100.000"))
+                .allergen(false).createdAt(OffsetDateTime.now()).build();
+
+        when(productRepository.findByIdAndTenantId(PRODUCT_ID, TENANT_ID))
+                .thenReturn(Optional.of(sampleProduct()));
+        when(ingredientRepository.findByProductIdAndTenantIdOrderByWeightGramsDesc(PRODUCT_ID, TENANT_ID))
+                .thenReturn(List.of(ing1, ing2));   // ya ordenados por weight DESC
+
+        List<IngredientResponse> result = ingredientService.findByProduct(PRODUCT_ID);
+
+        // Total = 400g → ing1 = 75%, ing2 = 25%
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).percentage()).isEqualByComparingTo("75.000");
+        assertThat(result.get(1).percentage()).isEqualByComparingTo("25.000");
     }
 
     @Test
@@ -108,11 +132,11 @@ class IngredientServiceTest {
     void create_asigna_tenantId_y_productId() {
         when(productRepository.findByIdAndTenantId(PRODUCT_ID, TENANT_ID))
                 .thenReturn(Optional.of(sampleProduct()));
-        when(ingredientRepository.sumPercentageExcluding(eq(PRODUCT_ID), eq(TENANT_ID), any()))
-                .thenReturn(BigDecimal.ZERO);
         when(ingredientRepository.save(any())).thenReturn(sampleIngredient());
+        when(ingredientRepository.sumWeightGrams(PRODUCT_ID, TENANT_ID))
+                .thenReturn(new BigDecimal("200.000"));
 
-        IngredientRequest req = new IngredientRequest("Harina de trigo", new BigDecimal("40"), null, 0);
+        IngredientRequest req = new IngredientRequest("Harina de trigo", new BigDecimal("200"), null);
         ingredientService.create(PRODUCT_ID, req);
 
         ArgumentCaptor<Ingredient> captor = ArgumentCaptor.forClass(Ingredient.class);
@@ -121,18 +145,19 @@ class IngredientServiceTest {
 
         assertThat(saved.getTenantId()).isEqualTo(TENANT_ID);
         assertThat(saved.getProductId()).isEqualTo(PRODUCT_ID);
+        assertThat(saved.getWeightGrams()).isEqualByComparingTo("200");
     }
 
     @Test
     void create_autodetecta_alergeno_cuando_allergen_es_null() {
         when(productRepository.findByIdAndTenantId(PRODUCT_ID, TENANT_ID))
                 .thenReturn(Optional.of(sampleProduct()));
-        when(ingredientRepository.sumPercentageExcluding(any(), any(), any()))
-                .thenReturn(BigDecimal.ZERO);
         when(ingredientRepository.save(any())).thenReturn(sampleIngredient());
+        when(ingredientRepository.sumWeightGrams(PRODUCT_ID, TENANT_ID))
+                .thenReturn(new BigDecimal("100.000"));
 
         // "avena" es alérgeno según Res. 109/2023
-        IngredientRequest req = new IngredientRequest("Avena molida", new BigDecimal("20"), null, 0);
+        IngredientRequest req = new IngredientRequest("Avena molida", new BigDecimal("100"), null);
         ingredientService.create(PRODUCT_ID, req);
 
         ArgumentCaptor<Ingredient> captor = ArgumentCaptor.forClass(Ingredient.class);
@@ -144,14 +169,14 @@ class IngredientServiceTest {
     void create_respeta_allergen_explicito_false() {
         when(productRepository.findByIdAndTenantId(PRODUCT_ID, TENANT_ID))
                 .thenReturn(Optional.of(sampleProduct()));
-        when(ingredientRepository.sumPercentageExcluding(any(), any(), any()))
-                .thenReturn(BigDecimal.ZERO);
         Ingredient saved = sampleIngredient();
         saved.setAllergen(false);
         when(ingredientRepository.save(any())).thenReturn(saved);
+        when(ingredientRepository.sumWeightGrams(PRODUCT_ID, TENANT_ID))
+                .thenReturn(new BigDecimal("200.000"));
 
         // aunque "trigo" es alérgeno, si el cliente envía allergen=false se respeta
-        IngredientRequest req = new IngredientRequest("Harina de trigo", new BigDecimal("40"), false, 0);
+        IngredientRequest req = new IngredientRequest("Harina de trigo", new BigDecimal("200"), false);
         ingredientService.create(PRODUCT_ID, req);
 
         ArgumentCaptor<Ingredient> captor = ArgumentCaptor.forClass(Ingredient.class);
@@ -159,51 +184,22 @@ class IngredientServiceTest {
         assertThat(captor.getValue().isAllergen()).isFalse();
     }
 
-    @Test
-    void create_lanza_excepcion_si_suma_supera_100() {
-        when(productRepository.findByIdAndTenantId(PRODUCT_ID, TENANT_ID))
-                .thenReturn(Optional.of(sampleProduct()));
-        // Suma existente = 80%, nuevo ingrediente = 30% → total 110% > 100%
-        when(ingredientRepository.sumPercentageExcluding(any(), any(), any()))
-                .thenReturn(new BigDecimal("80.000"));
-
-        IngredientRequest req = new IngredientRequest("Agua", new BigDecimal("30"), false, 1);
-        assertThatThrownBy(() -> ingredientService.create(PRODUCT_ID, req))
-                .isInstanceOf(PercentageSumExceededException.class)
-                .hasMessageContaining("100");
-    }
-
-    @Test
-    void create_acepta_suma_exactamente_100() {
-        when(productRepository.findByIdAndTenantId(PRODUCT_ID, TENANT_ID))
-                .thenReturn(Optional.of(sampleProduct()));
-        when(ingredientRepository.sumPercentageExcluding(any(), any(), any()))
-                .thenReturn(new BigDecimal("60.000"));
-        when(ingredientRepository.save(any())).thenReturn(sampleIngredient());
-
-        // 60 + 40 = 100 → válido
-        IngredientRequest req = new IngredientRequest("Azúcar", new BigDecimal("40"), false, 1);
-        assertThatNoException().isThrownBy(() -> ingredientService.create(PRODUCT_ID, req));
-    }
-
     // ── update ───────────────────────────────────────────────────────────────
 
     @Test
-    void update_modifica_campos_y_revalida_suma() {
+    void update_modifica_campos() {
         Ingredient existing = sampleIngredient();
         when(ingredientRepository.findByIdAndTenantId(INGREDIENT_ID, TENANT_ID))
                 .thenReturn(Optional.of(existing));
-        // Suma excluyendo este ingrediente = 50%, nuevo = 30% → total 80% ≤ 100% ✓
-        when(ingredientRepository.sumPercentageExcluding(PRODUCT_ID, TENANT_ID, INGREDIENT_ID))
-                .thenReturn(new BigDecimal("50.000"));
         when(ingredientRepository.save(any())).thenReturn(existing);
+        when(ingredientRepository.sumWeightGrams(PRODUCT_ID, TENANT_ID))
+                .thenReturn(new BigDecimal("150.000"));
 
-        IngredientRequest req = new IngredientRequest("Harina integral", new BigDecimal("30"), null, 1);
+        IngredientRequest req = new IngredientRequest("Harina integral", new BigDecimal("150"), null);
         ingredientService.update(INGREDIENT_ID, req);
 
         assertThat(existing.getName()).isEqualTo("Harina integral");
-        assertThat(existing.getPercentage()).isEqualByComparingTo("30");
-        assertThat(existing.getSortOrder()).isEqualTo(1);
+        assertThat(existing.getWeightGrams()).isEqualByComparingTo("150");
     }
 
     @Test
@@ -211,7 +207,7 @@ class IngredientServiceTest {
         when(ingredientRepository.findByIdAndTenantId(INGREDIENT_ID, TENANT_ID))
                 .thenReturn(Optional.empty());
 
-        IngredientRequest req = new IngredientRequest("X", new BigDecimal("10"), false, 0);
+        IngredientRequest req = new IngredientRequest("X", new BigDecimal("10"), false);
         assertThatThrownBy(() -> ingredientService.update(INGREDIENT_ID, req))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
@@ -260,6 +256,7 @@ class IngredientServiceTest {
         assertThat(AllergenDetector.isAllergen("Aceite de girasol")).isFalse();
         assertThat(AllergenDetector.isAllergen("Azúcar")).isFalse();
         assertThat(AllergenDetector.isAllergen("Colorante caramelo")).isFalse();
+        assertThat(AllergenDetector.isAllergen("Nuez moscada")).isFalse();
     }
 
     @Test

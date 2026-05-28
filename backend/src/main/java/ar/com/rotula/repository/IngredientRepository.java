@@ -12,28 +12,21 @@ import java.util.UUID;
 
 public interface IngredientRepository extends JpaRepository<Ingredient, UUID> {
 
-    List<Ingredient> findByProductIdOrderBySortOrder(UUID productId);
-
-    List<Ingredient> findByProductIdAndTenantIdOrderBySortOrder(UUID productId, UUID tenantId);
+    /** Listado ordenado por peso descendente (mayor peso primero, conforme normativa). */
+    List<Ingredient> findByProductIdAndTenantIdOrderByWeightGramsDesc(UUID productId, UUID tenantId);
 
     List<Ingredient> findByTenantId(UUID tenantId);
 
     Optional<Ingredient> findByIdAndTenantId(UUID id, UUID tenantId);
 
-    /** Suma los porcentajes de todos los ingredientes de un producto, excluyendo uno (para updates). */
+    /** Suma total de pesos del producto (para calcular porcentajes). */
     @Query("""
-            SELECT COALESCE(SUM(i.percentage), 0)
+            SELECT COALESCE(SUM(i.weightGrams), 0)
             FROM Ingredient i
             WHERE i.productId = :productId
               AND i.tenantId  = :tenantId
-              AND i.id       != :excludeId
             """)
-    BigDecimal sumPercentageExcluding(
-            @Param("productId")  UUID productId,
-            @Param("tenantId")   UUID tenantId,
-            @Param("excludeId")  UUID excludeId);
-
-    /** Máximo sort_order actual del producto (para auto-asignar el siguiente). */
-    @Query("SELECT COALESCE(MAX(i.sortOrder), -1) FROM Ingredient i WHERE i.productId = :productId AND i.tenantId = :tenantId")
-    int maxSortOrder(@Param("productId") UUID productId, @Param("tenantId") UUID tenantId);
+    BigDecimal sumWeightGrams(
+            @Param("productId") UUID productId,
+            @Param("tenantId")  UUID tenantId);
 }

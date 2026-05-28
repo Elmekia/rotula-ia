@@ -3,7 +3,6 @@ package ar.com.rotula.controller;
 import ar.com.rotula.config.TenantDataSourceWrapper;
 import ar.com.rotula.dto.IngredientRequest;
 import ar.com.rotula.dto.IngredientResponse;
-import ar.com.rotula.exception.PercentageSumExceededException;
 import ar.com.rotula.exception.ResourceNotFoundException;
 import ar.com.rotula.security.JwtService;
 import ar.com.rotula.service.IngredientService;
@@ -45,8 +44,11 @@ class IngredientControllerIT {
     private IngredientResponse sampleResponse() {
         return new IngredientResponse(
                 INGREDIENT_ID, PRODUCT_ID, TENANT_ID,
-                "Harina de trigo", new BigDecimal("40.000"),
-                true, 0, OffsetDateTime.now()
+                "Harina de trigo",
+                new BigDecimal("200.000"),   // weightGrams
+                new BigDecimal("100.000"),   // percentage (calculado)
+                true,
+                OffsetDateTime.now()
         );
     }
 
@@ -60,8 +62,9 @@ class IngredientControllerIT {
         mockMvc.perform(get("/products/{id}/ingredients", PRODUCT_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("Harina de trigo"))
-                .andExpect(jsonPath("$[0].allergen").value(true))
-                .andExpect(jsonPath("$[0].sortOrder").value(0));
+                .andExpect(jsonPath("$[0].weightGrams").value(200.0))
+                .andExpect(jsonPath("$[0].percentage").value(100.0))
+                .andExpect(jsonPath("$[0].allergen").value(true));
     }
 
     @Test
@@ -86,7 +89,7 @@ class IngredientControllerIT {
     @Test
     @WithMockUser
     void create_retorna_201() throws Exception {
-        IngredientRequest req = new IngredientRequest("Avena", new BigDecimal("30"), null, 0);
+        IngredientRequest req = new IngredientRequest("Avena", new BigDecimal("150"), null);
         when(ingredientService.create(eq(PRODUCT_ID), any())).thenReturn(sampleResponse());
 
         mockMvc.perform(post("/products/{id}/ingredients", PRODUCT_ID)
@@ -100,7 +103,7 @@ class IngredientControllerIT {
     @Test
     @WithMockUser
     void create_retorna_400_si_nombre_vacio() throws Exception {
-        IngredientRequest req = new IngredientRequest("", new BigDecimal("10"), null, 0);
+        IngredientRequest req = new IngredientRequest("", new BigDecimal("100"), null);
 
         mockMvc.perform(post("/products/{id}/ingredients", PRODUCT_ID)
                         .with(csrf())
@@ -112,31 +115,16 @@ class IngredientControllerIT {
 
     @Test
     @WithMockUser
-    void create_retorna_400_si_porcentaje_fuera_de_rango() throws Exception {
-        IngredientRequest req = new IngredientRequest("Agua", new BigDecimal("101"), false, 0);
+    void create_retorna_400_si_peso_invalido() throws Exception {
+        // weight_grams = 0 viola @DecimalMin("0.001")
+        IngredientRequest req = new IngredientRequest("Agua", BigDecimal.ZERO, false);
 
         mockMvc.perform(post("/products/{id}/ingredients", PRODUCT_ID)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fields.percentage").exists());
-    }
-
-    @Test
-    @WithMockUser
-    void create_retorna_422_si_suma_supera_100() throws Exception {
-        IngredientRequest req = new IngredientRequest("Agua", new BigDecimal("30"), false, 1);
-        when(ingredientService.create(eq(PRODUCT_ID), any()))
-                .thenThrow(new PercentageSumExceededException(
-                        new BigDecimal("80.000"), new BigDecimal("30.000")));
-
-        mockMvc.perform(post("/products/{id}/ingredients", PRODUCT_ID)
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.error").exists());
+                .andExpect(jsonPath("$.fields.weightGrams").exists());
     }
 
     // ── PUT /ingredients/{id} ────────────────────────────────────────────────
@@ -144,11 +132,14 @@ class IngredientControllerIT {
     @Test
     @WithMockUser
     void update_retorna_ingrediente_modificado() throws Exception {
-        IngredientRequest req = new IngredientRequest("Avena integral", new BigDecimal("25"), true, 1);
+        IngredientRequest req = new IngredientRequest("Avena integral", new BigDecimal("250"), true);
         IngredientResponse updated = new IngredientResponse(
                 INGREDIENT_ID, PRODUCT_ID, TENANT_ID,
-                "Avena integral", new BigDecimal("25.000"),
-                true, 1, OffsetDateTime.now()
+                "Avena integral",
+                new BigDecimal("250.000"),
+                new BigDecimal("100.000"),
+                true,
+                OffsetDateTime.now()
         );
         when(ingredientService.update(eq(INGREDIENT_ID), any())).thenReturn(updated);
 
@@ -158,13 +149,14 @@ class IngredientControllerIT {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Avena integral"))
-                .andExpect(jsonPath("$.sortOrder").value(1));
+                .andExpect(jsonPath("$.weightGrams").value(250.0))
+                .andExpect(jsonPath("$.percentage").value(100.0));
     }
 
     @Test
     @WithMockUser
     void update_retorna_404_si_no_existe() throws Exception {
-        IngredientRequest req = new IngredientRequest("X", new BigDecimal("10"), false, 0);
+        IngredientRequest req = new IngredientRequest("X", new BigDecimal("10"), false);
         when(ingredientService.update(eq(INGREDIENT_ID), any()))
                 .thenThrow(new ResourceNotFoundException("Ingrediente no encontrado: " + INGREDIENT_ID));
 

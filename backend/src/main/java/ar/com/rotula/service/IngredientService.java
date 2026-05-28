@@ -3,7 +3,6 @@ package ar.com.rotula.service;
 import ar.com.rotula.domain.Ingredient;
 import ar.com.rotula.dto.IngredientRequest;
 import ar.com.rotula.dto.IngredientResponse;
-import ar.com.rotula.exception.PercentageSumExceededException;
 import ar.com.rotula.exception.ResourceNotFoundException;
 import ar.com.rotula.repository.IngredientRepository;
 import ar.com.rotula.repository.ProductRepository;
@@ -14,14 +13,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class IngredientService {
-
-    private static final BigDecimal MAX_PERCENTAGE = new BigDecimal("100.000");
 
     private final IngredientRepository ingredientRepository;
     private final ProductRepository    productRepository;
@@ -32,19 +30,17 @@ public class IngredientService {
     public List<IngredientResponse> findByProduct(UUID productId) {
         AppUserDetails user = currentUser();
         requireProductOwned(productId, user.getTenantId());
-        return ingredientRepository
-                .findByProductIdAndTenantIdOrderBySortOrder(productId, user.getTenantId())
-                .stream()
-                .map(i -> new IngredientResponse(
-                        i.getId(),
-                        i.getProductId(),
-                        i.getTenantId(),
-                        i.getName(),
-                        i.getPercentage(),
-                        AllergenDetector.isAllergen(i.getName()),   // re-detect on every list load
-                        i.getSortOrder(),
-                        i.getCreatedAt()
-                ))
+
+        List<Ingredient> ingredients = ingredientRepository
+                .findByProductIdAndTenantIdOrderByWeightGramsDesc(productId, user.getTenantId());
+
+        // Calcular total de pesos para derivar % de cada ingrediente
+        BigDecimal total = ingredients.stream()
+                .map(Ingredient::getWeightGrams)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return ingredients.stream()
+                .map(i -> toResponse(i, total))
                 .toList();
     }
 
@@ -55,27 +51,17 @@ public class IngredientService {
         AppUserDetails user = currentUser();
         requireProductOwned(productId, user.getTenantId());
 
-        // Synthetic UUID as exclude (no existing ingredient)
-        UUID noExclude = new UUID(0, 0);
-        validatePercentageSum(productId, user.getTenantId(), noExclude, req.percentage());
-
-        boolean allergen = resolveAllergen(req);
-
-        // Auto-assign sort_order if not meaningful (client may send max+1 or use backend default)
-        int sortOrder = req.sortOrder() >= 0
-                ? req.sortOrder()
-                : ingredientRepository.maxSortOrder(productId, user.getTenantId()) + 1;
-
         Ingredient saved = ingredientRepository.save(Ingredient.builder()
                 .productId(productId)
                 .tenantId(user.getTenantId())
                 .name(req.name())
-                .percentage(req.percentage())
-                .allergen(allergen)
-                .sortOrder(sortOrder)
+                .weightGrams(req.weightGrams())
+                .allergen(resolveAllergen(req))
                 .build());
 
-        return IngredientResponse.from(saved);
+        // Calcular % sobre el total actualizado (incluye el ingrediente recién guardado)
+        BigDecimal total = ingredientRepository.sumWeightGrams(productId, user.getTenantId());
+        return toResponse(saved, total);
     }
 
     // ── Update ───────────────────────────────────────────────────────────────
@@ -85,14 +71,14 @@ public class IngredientService {
         AppUserDetails user = currentUser();
         Ingredient ingredient = requireIngredientOwned(ingredientId, user.getTenantId());
 
-        validatePercentageSum(ingredient.getProductId(), user.getTenantId(), ingredientId, req.percentage());
-
         ingredient.setName(req.name());
-        ingredient.setPercentage(req.percentage());
+        ingredient.setWeightGrams(req.weightGrams());
         ingredient.setAllergen(resolveAllergen(req));
-        ingredient.setSortOrder(req.sortOrder());
 
-        return IngredientResponse.from(ingredientRepository.save(ingredient));
+        Ingredient saved = ingredientRepository.save(ingredient);
+
+        BigDecimal total = ingredientRepository.sumWeightGrams(saved.getProductId(), user.getTenantId());
+        return toResponse(saved, total);
     }
 
     // ── Delete ───────────────────────────────────────────────────────────────
@@ -106,19 +92,33 @@ public class IngredientService {
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     /**
-     * Validates that adding {@code incoming} percentage (excluding ingredient {@code excludeId})
-     * doesn't push the total over 100%.
+     * Construye un IngredientResponse calculando el porcentaje como:
+     *   percentage = weightGrams / total * 100
+     * Si total es cero (sin ingredientes), el porcentaje es 0.
      */
-    private void validatePercentageSum(UUID productId, UUID tenantId, UUID excludeId, BigDecimal incoming) {
-        BigDecimal existing = ingredientRepository.sumPercentageExcluding(productId, tenantId, excludeId);
-        if (existing.add(incoming).compareTo(MAX_PERCENTAGE) > 0) {
-            throw new PercentageSumExceededException(existing, incoming);
-        }
+    private IngredientResponse toResponse(Ingredient i, BigDecimal total) {
+        BigDecimal pct = total.compareTo(BigDecimal.ZERO) == 0
+                ? BigDecimal.ZERO
+                : i.getWeightGrams()
+                        .divide(total, 7, RoundingMode.HALF_UP)
+                        .multiply(new BigDecimal("100"))
+                        .setScale(3, RoundingMode.HALF_UP);
+
+        return new IngredientResponse(
+                i.getId(),
+                i.getProductId(),
+                i.getTenantId(),
+                i.getName(),
+                i.getWeightGrams(),
+                pct,
+                AllergenDetector.isAllergen(i.getName()),
+                i.getCreatedAt()
+        );
     }
 
     /**
-     * If the request provides an explicit allergen flag, use it;
-     * otherwise auto-detect from the ingredient name.
+     * Si el request provee un flag explícito de alérgeno, se usa ese valor;
+     * de lo contrario se auto-detecta desde el nombre según Res. 109/2023.
      */
     private boolean resolveAllergen(IngredientRequest req) {
         return req.allergen() != null

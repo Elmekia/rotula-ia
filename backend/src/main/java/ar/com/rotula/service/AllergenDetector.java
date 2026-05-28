@@ -23,6 +23,8 @@ import java.util.Locale;
  *  12. Dióxido de azufre y sulfitos
  *  13. Altramuces / lupino
  *  14. Moluscos
+ *
+ * Misma lógica que allergenDetector.ts en el frontend.
  */
 public final class AllergenDetector {
 
@@ -36,20 +38,28 @@ public final class AllergenDetector {
             // 1 – Cereales con gluten
             "trigo", "centeno", "cebada", "avena", "espelta", "kamut", "farro",
             "triticale", "gluten", "harina de trigo", "almidón de trigo",
-            "sémola", "cuscús", "bulgur",
+            "sémola", "semola", "cuscús", "cuscus", "bulgur",
+            // derivados frecuentes no cubiertos por el nombre del cereal
+            "malta", "extracto de malta", "cebada malteada",
+            "salvado de trigo", "salvado de avena", "germen de trigo",
+            "proteína de trigo", "gluten de trigo", "copos de avena",
 
             // 2 – Crustáceos
             "crustáceo", "crustaceo", "camarón", "camaron", "langosta",
             "langostino", "cangrejo", "krill", "cigala", "bogavante",
+            "gamba", "quisquilla",
 
             // 3 – Huevo
             "huevo", "albumina", "ovoalbúmina", "ovoalbumina", "lisozima",
-            "mayonesa", "yema", "clara de huevo",
+            "ovomucina", "ovomucoide",
+            "mayonesa", "yema", "clara de huevo", "lecitina de huevo",
 
             // 4 – Pescado
             "pescado", "anchoa", "anchoíta", "anchoita", "bacalao", "merluza",
             "atún", "atun", "salmón", "salmon", "sardina", "tilapia",
             "surimi", "trucha", "lenguado", "pejerrey", "dorado",
+            // especies frecuentes en Argentina
+            "corvina", "boga", "pacú", "pacu", "surubí", "surubi", "bagre",
 
             // 5 – Maní / cacahuate
             "maní", "mani", "cacahuate", "cacahuete", "mantequilla de maní",
@@ -57,18 +67,23 @@ public final class AllergenDetector {
             // 6 – Soja / soya
             "soja", "soya", "lecitina de soja", "proteína de soja",
             "harina de soja", "tofu",
+            "edamame", "miso", "tempeh",
 
             // 7 – Leche y derivados
             "leche", "lactosa", "suero de leche", "caseína", "caseina",
-            "lactoalbúmina", "lactoalbumina", "lactoglobulina", "manteca",
-            "mantequilla", "queso", "crema", "yogur", "yogurt", "ricotta",
-            "requesón", "requeson", "nata",
+            "caseínato", "caseinato",           // caseinato de sodio, muy común en fiambres
+            "lactosuero", "suero lácteo",       // whey, frecuente en panificados y proteínas
+            "lactoalbúmina", "lactoalbumina", "lactoglobulina",
+            "manteca", "mantequilla", "queso", "crema", "yogur", "yogurt",
+            "ricotta", "requesón", "requeson", "nata",
 
-            // 8 – Frutos de cáscara
-            "nuez", "almendra", "avellana", "anacardo", "cajú", "caju",
+            // 8 – Frutos de cáscara (Res. 109/2023: almendra, avellana, nuez, anacardo,
+            //     pecán, nuez de Brasil, pistacho, macadamia / Queensland)
+            "almendra", "avellana", "anacardo", "cajú", "caju",
             "pistacho", "nuez de brasil", "nuez de macadamia",
             "nuez de pecán", "nuez de pecan", "pecán", "pecan",
-            "nuez de india", "nuez moscada",
+            // "nuez" sola cubre nuez común (Juglans regia)
+            "nuez",
 
             // 9 – Apio
             "apio",
@@ -88,7 +103,16 @@ public final class AllergenDetector {
 
             // 14 – Moluscos
             "molusco", "almeja", "mejillón", "mejillon", "ostra",
-            "calamar", "pulpo", "caracol", "berberecho", "vieira"
+            "calamar", "pulpo", "caracol", "berberecho", "vieira",
+            "chipirón", "chipiron", "jibia", "sepia"
+    );
+
+    /**
+     * Términos que, aunque contienen una keyword, NO son alérgenos
+     * según la Res. 109/2023 (e.g. especias con nombre similar).
+     */
+    private static final List<String> EXCLUSIONS = List.of(
+            "nuez moscada"          // especia (Myristica fragrans), no fruto de cáscara
     );
 
     /**
@@ -98,6 +122,7 @@ public final class AllergenDetector {
     public static boolean isAllergen(String ingredientName) {
         if (ingredientName == null || ingredientName.isBlank()) return false;
         String lower = ingredientName.toLowerCase(Locale.ROOT);
+        if (EXCLUSIONS.stream().anyMatch(lower::contains)) return false;
         return KEYWORDS.stream().anyMatch(lower::contains);
     }
 }

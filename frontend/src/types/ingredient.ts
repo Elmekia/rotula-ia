@@ -3,15 +3,17 @@ export interface Ingredient {
   productId: string
   tenantId: string
   name: string
+  /** Peso ingresado por el usuario en gramos. */
+  weightGrams: number
+  /** Porcentaje calculado automáticamente: weightGrams / sum(weightGrams) * 100 */
   percentage: number
   allergen: boolean
-  sortOrder: number
   createdAt: string
 }
 
 export interface IngredientRequest {
   name: string
-  percentage: number
+  /** Peso del ingrediente en gramos. */
+  weightGrams: number
   allergen: boolean | null
-  sortOrder: number
 }

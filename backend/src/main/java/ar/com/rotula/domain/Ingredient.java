@@ -25,15 +25,13 @@ public class Ingredient {
     @Column(nullable = false, length = 300)
     private String name;
 
-    @Column(precision = 6, scale = 3)
-    private BigDecimal percentage;
+    /** Peso del ingrediente en gramos ingresado por el usuario. */
+    @Column(name = "weight_grams", nullable = false, precision = 10, scale = 3)
+    private BigDecimal weightGrams;
 
     // Field named "allergen" to produce getter isAllergen(); maps to DB column is_allergen
     @Column(name = "is_allergen", nullable = false)
     private boolean allergen;
-
-    @Column(name = "sort_order", nullable = false)
-    private int sortOrder;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
