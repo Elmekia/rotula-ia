@@ -12,9 +12,8 @@ import java.util.UUID;
 
 public interface IngredientRepository extends JpaRepository<Ingredient, UUID> {
 
-    List<Ingredient> findByProductIdOrderBySortOrder(UUID productId);
-
-    List<Ingredient> findByProductIdAndTenantIdOrderBySortOrder(UUID productId, UUID tenantId);
+    /** Listado ordenado por porcentaje descendente (mayor peso primero, conforme normativa). */
+    List<Ingredient> findByProductIdAndTenantIdOrderByPercentageDesc(UUID productId, UUID tenantId);
 
     List<Ingredient> findByTenantId(UUID tenantId);
 
@@ -32,8 +31,4 @@ public interface IngredientRepository extends JpaRepository<Ingredient, UUID> {
             @Param("productId")  UUID productId,
             @Param("tenantId")   UUID tenantId,
             @Param("excludeId")  UUID excludeId);
-
-    /** Máximo sort_order actual del producto (para auto-asignar el siguiente). */
-    @Query("SELECT COALESCE(MAX(i.sortOrder), -1) FROM Ingredient i WHERE i.productId = :productId AND i.tenantId = :tenantId")
-    int maxSortOrder(@Param("productId") UUID productId, @Param("tenantId") UUID tenantId);
 }

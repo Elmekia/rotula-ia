@@ -1,6 +1,10 @@
 package ar.com.rotula.dto;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
@@ -19,9 +23,5 @@ public record IngredientRequest(
          * Si es null, el backend aplica detección automática según Res. 109/2023.
          * Si se envía explícitamente true/false, se usa ese valor.
          */
-        Boolean allergen,
-
-        @NotNull(message = "El orden es obligatorio")
-        @Min(value = 0, message = "El orden debe ser mayor o igual a 0")
-        Integer sortOrder
+        Boolean allergen
 ) {}

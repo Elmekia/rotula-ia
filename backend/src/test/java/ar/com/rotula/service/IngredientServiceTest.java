@@ -80,10 +80,10 @@ class IngredientServiceTest {
     // ── findByProduct ────────────────────────────────────────────────────────
 
     @Test
-    void findByProduct_retorna_lista_ordenada() {
+    void findByProduct_retorna_lista_ordenada_por_porcentaje() {
         when(productRepository.findByIdAndTenantId(PRODUCT_ID, TENANT_ID))
                 .thenReturn(Optional.of(sampleProduct()));
-        when(ingredientRepository.findByProductIdAndTenantIdOrderBySortOrder(PRODUCT_ID, TENANT_ID))
+        when(ingredientRepository.findByProductIdAndTenantIdOrderByPercentageDesc(PRODUCT_ID, TENANT_ID))
                 .thenReturn(List.of(sampleIngredient()));
 
         List<IngredientResponse> result = ingredientService.findByProduct(PRODUCT_ID);
@@ -112,7 +112,7 @@ class IngredientServiceTest {
                 .thenReturn(BigDecimal.ZERO);
         when(ingredientRepository.save(any())).thenReturn(sampleIngredient());
 
-        IngredientRequest req = new IngredientRequest("Harina de trigo", new BigDecimal("40"), null, 0);
+        IngredientRequest req = new IngredientRequest("Harina de trigo", new BigDecimal("40"), null);
         ingredientService.create(PRODUCT_ID, req);
 
         ArgumentCaptor<Ingredient> captor = ArgumentCaptor.forClass(Ingredient.class);
@@ -132,7 +132,7 @@ class IngredientServiceTest {
         when(ingredientRepository.save(any())).thenReturn(sampleIngredient());
 
         // "avena" es alérgeno según Res. 109/2023
-        IngredientRequest req = new IngredientRequest("Avena molida", new BigDecimal("20"), null, 0);
+        IngredientRequest req = new IngredientRequest("Avena molida", new BigDecimal("20"), null);
         ingredientService.create(PRODUCT_ID, req);
 
         ArgumentCaptor<Ingredient> captor = ArgumentCaptor.forClass(Ingredient.class);
@@ -151,7 +151,7 @@ class IngredientServiceTest {
         when(ingredientRepository.save(any())).thenReturn(saved);
 
         // aunque "trigo" es alérgeno, si el cliente envía allergen=false se respeta
-        IngredientRequest req = new IngredientRequest("Harina de trigo", new BigDecimal("40"), false, 0);
+        IngredientRequest req = new IngredientRequest("Harina de trigo", new BigDecimal("40"), false);
         ingredientService.create(PRODUCT_ID, req);
 
         ArgumentCaptor<Ingredient> captor = ArgumentCaptor.forClass(Ingredient.class);
@@ -167,7 +167,7 @@ class IngredientServiceTest {
         when(ingredientRepository.sumPercentageExcluding(any(), any(), any()))
                 .thenReturn(new BigDecimal("80.000"));
 
-        IngredientRequest req = new IngredientRequest("Agua", new BigDecimal("30"), false, 1);
+        IngredientRequest req = new IngredientRequest("Agua", new BigDecimal("30"), false);
         assertThatThrownBy(() -> ingredientService.create(PRODUCT_ID, req))
                 .isInstanceOf(PercentageSumExceededException.class)
                 .hasMessageContaining("100");
@@ -182,7 +182,7 @@ class IngredientServiceTest {
         when(ingredientRepository.save(any())).thenReturn(sampleIngredient());
 
         // 60 + 40 = 100 → válido
-        IngredientRequest req = new IngredientRequest("Azúcar", new BigDecimal("40"), false, 1);
+        IngredientRequest req = new IngredientRequest("Azúcar", new BigDecimal("40"), false);
         assertThatNoException().isThrownBy(() -> ingredientService.create(PRODUCT_ID, req));
     }
 
@@ -198,12 +198,11 @@ class IngredientServiceTest {
                 .thenReturn(new BigDecimal("50.000"));
         when(ingredientRepository.save(any())).thenReturn(existing);
 
-        IngredientRequest req = new IngredientRequest("Harina integral", new BigDecimal("30"), null, 1);
+        IngredientRequest req = new IngredientRequest("Harina integral", new BigDecimal("30"), null);
         ingredientService.update(INGREDIENT_ID, req);
 
         assertThat(existing.getName()).isEqualTo("Harina integral");
         assertThat(existing.getPercentage()).isEqualByComparingTo("30");
-        assertThat(existing.getSortOrder()).isEqualTo(1);
     }
 
     @Test
@@ -211,7 +210,7 @@ class IngredientServiceTest {
         when(ingredientRepository.findByIdAndTenantId(INGREDIENT_ID, TENANT_ID))
                 .thenReturn(Optional.empty());
 
-        IngredientRequest req = new IngredientRequest("X", new BigDecimal("10"), false, 0);
+        IngredientRequest req = new IngredientRequest("X", new BigDecimal("10"), false);
         assertThatThrownBy(() -> ingredientService.update(INGREDIENT_ID, req))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
@@ -242,15 +241,26 @@ class IngredientServiceTest {
     // ── AllergenDetector ─────────────────────────────────────────────────────
 
     @Test
-    void allergenDetector_detecta_ingredientes_comunes() {
-        assertThat(AllergenDetector.isAllergen("Harina de trigo")).isTrue();
-        assertThat(AllergenDetector.isAllergen("Leche descremada")).isTrue();
-        assertThat(AllergenDetector.isAllergen("Huevo entero")).isTrue();
-        assertThat(AllergenDetector.isAllergen("Maní tostado")).isTrue();
-        assertThat(AllergenDetector.isAllergen("Lecitina de soja")).isTrue();
-        assertThat(AllergenDetector.isAllergen("Almendra fileteada")).isTrue();
-        assertThat(AllergenDetector.isAllergen("Sésamo negro")).isTrue();
-        assertThat(AllergenDetector.isAllergen("Mostaza amarilla")).isTrue();
+    void allergenDetector_detecta_grupos_principales() {
+        assertThat(AllergenDetector.isAllergen("Harina de trigo")).isTrue();         // 1 gluten
+        assertThat(AllergenDetector.isAllergen("Leche descremada")).isTrue();        // 7 leche
+        assertThat(AllergenDetector.isAllergen("Huevo entero")).isTrue();            // 3 huevo
+        assertThat(AllergenDetector.isAllergen("Maní tostado")).isTrue();            // 5 maní
+        assertThat(AllergenDetector.isAllergen("Lecitina de soja")).isTrue();        // 6 soja
+        assertThat(AllergenDetector.isAllergen("Almendra fileteada")).isTrue();      // 8 frutos cáscara
+        assertThat(AllergenDetector.isAllergen("Sésamo negro")).isTrue();            // 11 sésamo
+        assertThat(AllergenDetector.isAllergen("Mostaza amarilla")).isTrue();        // 10 mostaza
+    }
+
+    @Test
+    void allergenDetector_detecta_keywords_nuevos() {
+        assertThat(AllergenDetector.isAllergen("Extracto de malta")).isTrue();       // 1 gluten
+        assertThat(AllergenDetector.isAllergen("Caseinato de sodio")).isTrue();      // 7 leche
+        assertThat(AllergenDetector.isAllergen("Lactosuero en polvo")).isTrue();     // 7 leche
+        assertThat(AllergenDetector.isAllergen("Corvina del Plata")).isTrue();       // 4 pescado
+        assertThat(AllergenDetector.isAllergen("Miso de soja")).isTrue();            // 6 soja
+        assertThat(AllergenDetector.isAllergen("Tempeh orgánico")).isTrue();         // 6 soja
+        assertThat(AllergenDetector.isAllergen("Sepia en tinta")).isTrue();          // 14 molusco
     }
 
     @Test
@@ -260,11 +270,13 @@ class IngredientServiceTest {
         assertThat(AllergenDetector.isAllergen("Aceite de girasol")).isFalse();
         assertThat(AllergenDetector.isAllergen("Azúcar")).isFalse();
         assertThat(AllergenDetector.isAllergen("Colorante caramelo")).isFalse();
+        assertThat(AllergenDetector.isAllergen("Nuez moscada")).isFalse();           // especia, no alérgeno
     }
 
     @Test
     void allergenDetector_es_case_insensitive() {
         assertThat(AllergenDetector.isAllergen("TRIGO")).isTrue();
         assertThat(AllergenDetector.isAllergen("Leche ENTERA")).isTrue();
+        assertThat(AllergenDetector.isAllergen("MALTA")).isTrue();
     }
 }

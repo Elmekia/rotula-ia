@@ -13,5 +13,4 @@ export interface IngredientRequest {
   name: string
   percentage: number
   allergen: boolean | null
-  sortOrder: number
 }

@@ -13,20 +13,18 @@ const schema = z.object({
     .gt(0, 'Debe ser mayor a 0')
     .max(100, 'No puede superar el 100%'),
   allergen: z.boolean(),
-  sortOrder: z.coerce.number().int().min(0),
 })
 
 type FormValues = z.infer<typeof schema>
 
 interface Props {
   ingredient?: Ingredient | null
-  nextSortOrder: number
   isSubmitting: boolean
   onSubmit: (data: IngredientRequest) => void
   onClose: () => void
 }
 
-export function IngredientForm({ ingredient, nextSortOrder, isSubmitting, onSubmit, onClose }: Props) {
+export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: Props) {
   const {
     register,
     handleSubmit,
@@ -38,10 +36,9 @@ export function IngredientForm({ ingredient, nextSortOrder, isSubmitting, onSubm
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name:      '',
+      name:       '',
       percentage: undefined,
-      allergen:  false,
-      sortOrder: nextSortOrder,
+      allergen:   false,
     },
   })
 
@@ -52,12 +49,11 @@ export function IngredientForm({ ingredient, nextSortOrder, isSubmitting, onSubm
         name:       ingredient.name,
         percentage: ingredient.percentage,
         allergen:   ingredient.allergen,
-        sortOrder:  ingredient.sortOrder,
       })
     } else {
-      reset({ name: '', percentage: undefined, allergen: false, sortOrder: nextSortOrder })
+      reset({ name: '', percentage: undefined, allergen: false })
     }
-  }, [ingredient, nextSortOrder, reset])
+  }, [ingredient, reset])
 
   // Real-time allergen detection as user types
   const nameValue = watch('name')
@@ -73,7 +69,6 @@ export function IngredientForm({ ingredient, nextSortOrder, isSubmitting, onSubm
       name:       values.name,
       percentage: values.percentage,
       allergen:   values.allergen,
-      sortOrder:  values.sortOrder,
     })
   }
 
@@ -112,29 +107,17 @@ export function IngredientForm({ ingredient, nextSortOrder, isSubmitting, onSubm
             )}
           </div>
 
-          {/* Porcentaje + Orden */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-600">Porcentaje (%) *</label>
-              <input
-                {...register('percentage')}
-                type="number"
-                step="0.001"
-                placeholder="40.000"
-                className={inputCls(!!errors.percentage)}
-              />
-              {errors.percentage && <p className="text-xs text-red-500">{errors.percentage.message}</p>}
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-600">Orden</label>
-              <input
-                {...register('sortOrder')}
-                type="number"
-                min={0}
-                className={inputCls(!!errors.sortOrder)}
-              />
-              {errors.sortOrder && <p className="text-xs text-red-500">{errors.sortOrder.message}</p>}
-            </div>
+          {/* Porcentaje */}
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-slate-600">Porcentaje (%) *</label>
+            <input
+              {...register('percentage')}
+              type="number"
+              step="0.001"
+              placeholder="40.000"
+              className={inputCls(!!errors.percentage)}
+            />
+            {errors.percentage && <p className="text-xs text-red-500">{errors.percentage.message}</p>}
           </div>
 
           {/* Alérgeno (toggle) */}

@@ -33,7 +33,7 @@ public class IngredientService {
         AppUserDetails user = currentUser();
         requireProductOwned(productId, user.getTenantId());
         return ingredientRepository
-                .findByProductIdAndTenantIdOrderBySortOrder(productId, user.getTenantId())
+                .findByProductIdAndTenantIdOrderByPercentageDesc(productId, user.getTenantId())
                 .stream()
                 .map(i -> new IngredientResponse(
                         i.getId(),
@@ -41,7 +41,7 @@ public class IngredientService {
                         i.getTenantId(),
                         i.getName(),
                         i.getPercentage(),
-                        AllergenDetector.isAllergen(i.getName()),   // re-detect on every list load
+                        AllergenDetector.isAllergen(i.getName()),
                         i.getSortOrder(),
                         i.getCreatedAt()
                 ))
@@ -61,18 +61,13 @@ public class IngredientService {
 
         boolean allergen = resolveAllergen(req);
 
-        // Auto-assign sort_order if not meaningful (client may send max+1 or use backend default)
-        int sortOrder = req.sortOrder() >= 0
-                ? req.sortOrder()
-                : ingredientRepository.maxSortOrder(productId, user.getTenantId()) + 1;
-
         Ingredient saved = ingredientRepository.save(Ingredient.builder()
                 .productId(productId)
                 .tenantId(user.getTenantId())
                 .name(req.name())
                 .percentage(req.percentage())
                 .allergen(allergen)
-                .sortOrder(sortOrder)
+                .sortOrder(0)
                 .build());
 
         return IngredientResponse.from(saved);
@@ -90,7 +85,6 @@ public class IngredientService {
         ingredient.setName(req.name());
         ingredient.setPercentage(req.percentage());
         ingredient.setAllergen(resolveAllergen(req));
-        ingredient.setSortOrder(req.sortOrder());
 
         return IngredientResponse.from(ingredientRepository.save(ingredient));
     }
