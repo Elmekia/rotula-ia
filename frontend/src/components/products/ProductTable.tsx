@@ -1,4 +1,5 @@
 import { Pencil, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import type { Product } from '../../types/product'
 
@@ -35,9 +36,14 @@ export function ProductTable({ products, onEdit, onDelete }: Props) {
             className="grid grid-cols-5 gap-4 px-6 py-4 border-b border-slate-100 last:border-0
                        items-center hover:bg-slate-50 transition-colors min-w-[640px]"
           >
-            {/* Nombre */}
+            {/* Nombre → link a detalle */}
             <div className="col-span-2">
-              <p className="font-medium text-slate-800 truncate">{p.name}</p>
+              <Link
+                to={`/products/${p.id}`}
+                className="font-medium text-slate-800 hover:text-blue-600 truncate block transition-colors"
+              >
+                {p.name}
+              </Link>
               {p.rnpaNumber && (
                 <p className="text-xs text-slate-400 mt-0.5">RNPA: {p.rnpaNumber}</p>
               )}
