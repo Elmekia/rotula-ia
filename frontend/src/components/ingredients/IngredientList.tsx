@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, AlertTriangle } from 'lucide-react'
 import { ingredientsApi } from '../../lib/ingredientsApi'
+import { detectAllergen } from '../../lib/allergenDetector'
 import { useToastStore } from '../../store/toastStore'
 import { IngredientForm } from './IngredientForm'
 import { DeleteModal } from '../products/DeleteModal'
@@ -193,9 +194,9 @@ export function IngredientList({ product }: Props) {
                 {ing.percentage.toFixed(3)}%
               </span>
 
-              {/* Allergen badge */}
+              {/* Allergen badge — always re-detected from name per Res. 109/2023 */}
               <div className="col-span-2">
-                {ing.allergen ? (
+                {detectAllergen(ing.name) ? (
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100
                                    text-amber-700 rounded text-xs font-medium">
                     <AlertTriangle className="w-3 h-3" />
@@ -241,7 +242,8 @@ export function IngredientList({ product }: Props) {
 
       {deleteTarget && (
         <DeleteModal
-          product={{ ...deleteTarget, name: deleteTarget.name } as any}
+          product={deleteTarget as any}
+          itemLabel="ingrediente"
           isDeleting={deleteMut.isPending}
           onConfirm={() => deleteMut.mutate(deleteTarget.id)}
           onCancel={() => setDeleteTarget(null)}

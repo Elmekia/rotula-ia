@@ -19,7 +19,7 @@ public record ProductRequest(
         BigDecimal netWeight,
 
         @NotBlank(message = "La unidad de peso es obligatoria")
-        @Pattern(regexp = "^(kg|g|l|ml|cc)$", message = "La unidad debe ser kg, g, l, ml o cc")
+        @Pattern(regexp = "^(kg|g|l|ml|u|cc)$", message = "La unidad debe ser kg, g, l, ml, u o cc")
         String weightUnit,
 
         @Size(max = 20, message = "El número RNE no puede superar los 20 caracteres")
