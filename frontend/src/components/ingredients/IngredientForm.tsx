@@ -1,10 +1,15 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { X, AlertTriangle } from 'lucide-react'
+import { X, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
 import { detectAllergen } from '../../lib/allergenDetector'
 import type { Ingredient, IngredientRequest } from '../../types/ingredient'
+
+const optionalPositiveNumber = z.preprocess(
+  (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
+  z.number().positive().nullable().optional()
+)
 
 const schema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio').max(300),
@@ -12,6 +17,15 @@ const schema = z.object({
     .number({ invalid_type_error: 'Debe ser un número' })
     .gt(0, 'Debe ser mayor a 0'),
   allergen: z.boolean(),
+  // Campos nutricionales opcionales
+  energyKcalPer100g: optionalPositiveNumber,
+  proteinsPer100g:   optionalPositiveNumber,
+  carbsPer100g:      optionalPositiveNumber,
+  sugarsPer100g:     optionalPositiveNumber,
+  fatTotalPer100g:   optionalPositiveNumber,
+  fatSatPer100g:     optionalPositiveNumber,
+  fatTransPer100g:   optionalPositiveNumber,
+  sodiumMgPer100g:   optionalPositiveNumber,
 })
 
 type FormValues = z.infer<typeof schema>
@@ -24,6 +38,8 @@ interface Props {
 }
 
 export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: Props) {
+  const [showNutrition, setShowNutrition] = useState(false)
+
   const {
     register,
     handleSubmit,
@@ -35,9 +51,17 @@ export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: 
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name:        '',
-      weightGrams: undefined,
-      allergen:    false,
+      name:              '',
+      weightGrams:       undefined,
+      allergen:          false,
+      energyKcalPer100g: null,
+      proteinsPer100g:   null,
+      carbsPer100g:      null,
+      sugarsPer100g:     null,
+      fatTotalPer100g:   null,
+      fatSatPer100g:     null,
+      fatTransPer100g:   null,
+      sodiumMgPer100g:   null,
     },
   })
 
@@ -45,10 +69,20 @@ export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: 
   useEffect(() => {
     if (ingredient) {
       reset({
-        name:        ingredient.name,
-        weightGrams: ingredient.weightGrams,
-        allergen:    ingredient.allergen,
+        name:              ingredient.name,
+        weightGrams:       ingredient.weightGrams,
+        allergen:          ingredient.allergen,
+        energyKcalPer100g: ingredient.energyKcalPer100g ?? null,
+        proteinsPer100g:   ingredient.proteinsPer100g ?? null,
+        carbsPer100g:      ingredient.carbsPer100g ?? null,
+        sugarsPer100g:     ingredient.sugarsPer100g ?? null,
+        fatTotalPer100g:   ingredient.fatTotalPer100g ?? null,
+        fatSatPer100g:     ingredient.fatSatPer100g ?? null,
+        fatTransPer100g:   ingredient.fatTransPer100g ?? null,
+        sodiumMgPer100g:   ingredient.sodiumMgPer100g ?? null,
       })
+      // Abrir sección si ya tiene datos nutricionales
+      if (ingredient.energyKcalPer100g != null) setShowNutrition(true)
     } else {
       reset({ name: '', weightGrams: undefined, allergen: false })
     }
@@ -58,16 +92,23 @@ export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: 
   const nameValue = watch('name')
   useEffect(() => {
     if (!ingredient) {
-      // Solo auto-detecta para ingredientes nuevos; no pisa la edición manual
       setValue('allergen', detectAllergen(nameValue))
     }
   }, [nameValue, ingredient, setValue])
 
   function onValid(values: FormValues) {
     onSubmit({
-      name:        values.name,
-      weightGrams: values.weightGrams,
-      allergen:    values.allergen,
+      name:              values.name,
+      weightGrams:       values.weightGrams,
+      allergen:          values.allergen,
+      energyKcalPer100g: values.energyKcalPer100g ?? null,
+      proteinsPer100g:   values.proteinsPer100g ?? null,
+      carbsPer100g:      values.carbsPer100g ?? null,
+      sugarsPer100g:     values.sugarsPer100g ?? null,
+      fatTotalPer100g:   values.fatTotalPer100g ?? null,
+      fatSatPer100g:     values.fatSatPer100g ?? null,
+      fatTransPer100g:   values.fatTransPer100g ?? null,
+      sodiumMgPer100g:   values.sodiumMgPer100g ?? null,
     })
   }
 
@@ -75,9 +116,9 @@ export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: 
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
           <h2 className="text-lg font-semibold text-slate-800">
             {ingredient ? 'Editar ingrediente' : 'Agregar ingrediente'}
           </h2>
@@ -86,7 +127,7 @@ export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: 
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(onValid)} className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit(onValid)} className="overflow-y-auto px-6 py-5 space-y-4">
           {/* Nombre */}
           <div className="space-y-1">
             <label className="block text-xs font-medium text-slate-600">Nombre *</label>
@@ -152,6 +193,44 @@ export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: 
             />
           </div>
 
+          {/* ── Sección nutricional (colapsable) ─────────────────────────────── */}
+          <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowNutrition(!showNutrition)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-slate-50
+                         hover:bg-slate-100 transition-colors text-left"
+            >
+              <span className="text-xs font-medium text-slate-600">
+                Información nutricional por 100 g
+                <span className="ml-1.5 font-normal text-slate-400">(opcional)</span>
+              </span>
+              {showNutrition
+                ? <ChevronUp className="w-4 h-4 text-slate-400" />
+                : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            </button>
+
+            {showNutrition && (
+              <div className="px-4 py-4 space-y-3">
+                <p className="text-xs text-slate-400">
+                  Completá los datos nutricionales del ingrediente <em>por cada 100 g</em>. Se usarán para
+                  calcular la tabla nutricional del producto.
+                </p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <NutrientField label="Energía (kcal)" placeholder="0" {...register('energyKcalPer100g')} />
+                  <NutrientField label="Proteínas (g)"  placeholder="0" {...register('proteinsPer100g')} />
+                  <NutrientField label="Carbohidratos (g)" placeholder="0" {...register('carbsPer100g')} />
+                  <NutrientField label="Azúcares (g)"  placeholder="0" {...register('sugarsPer100g')} />
+                  <NutrientField label="Grasas totales (g)" placeholder="0" {...register('fatTotalPer100g')} />
+                  <NutrientField label="Grasas saturadas (g)" placeholder="0" {...register('fatSatPer100g')} />
+                  <NutrientField label="Grasas trans (g)" placeholder="0" {...register('fatTransPer100g')} />
+                  <NutrientField label="Sodio (mg)"    placeholder="0" {...register('sodiumMgPer100g')} />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Footer */}
           <div className="flex justify-end gap-3 pt-2">
             <button
@@ -180,6 +259,8 @@ export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: 
   )
 }
 
+// ── helpers ───────────────────────────────────────────────────────────────────
+
 function inputCls(hasError: boolean) {
   return [
     'w-full px-3 py-2 text-sm border rounded-lg outline-none transition-colors',
@@ -187,4 +268,22 @@ function inputCls(hasError: boolean) {
       ? 'border-red-400 focus:ring-2 focus:ring-red-300'
       : 'border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100',
   ].join(' ')
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function NutrientField({ label, placeholder, ...props }: { label: string; placeholder: string; [k: string]: any }) {
+  return (
+    <div className="space-y-0.5">
+      <label className="block text-xs text-slate-500">{label}</label>
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        placeholder={placeholder}
+        className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg outline-none
+                   focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors"
+        {...props}
+      />
+    </div>
+  )
 }

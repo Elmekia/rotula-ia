@@ -51,6 +51,8 @@ public class ProductService {
                 .weightUnit(req.weightUnit())
                 .rneNumber(req.rneNumber())
                 .rnpaNumber(req.rnpaNumber())
+                .servingSizeG(req.servingSizeG())
+                .crossContamination(req.crossContamination())
                 .status("draft")
                 .build();
         return ProductResponse.from(productRepository.save(product));
@@ -65,6 +67,8 @@ public class ProductService {
         product.setWeightUnit(req.weightUnit());
         product.setRneNumber(req.rneNumber());
         product.setRnpaNumber(req.rnpaNumber());
+        product.setServingSizeG(req.servingSizeG());
+        product.setCrossContamination(req.crossContamination());
         return ProductResponse.from(productRepository.save(product));
     }
 

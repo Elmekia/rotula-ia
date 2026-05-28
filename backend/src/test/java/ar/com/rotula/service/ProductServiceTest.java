@@ -69,6 +69,12 @@ class ProductServiceTest {
                 .build();
     }
 
+    /** Helper para crear ProductRequest sin campos opcionales nuevos. */
+    private static ProductRequest req(String name, String category, BigDecimal weight,
+                                      String unit, String rne, String rnpa) {
+        return new ProductRequest(name, category, weight, unit, rne, rnpa, null, null);
+    }
+
     // ── findAll ─────────────────────────────────────────────────────────────
 
     @Test
@@ -123,14 +129,11 @@ class ProductServiceTest {
 
     @Test
     void create_asigna_tenantId_y_createdBy() {
-        ProductRequest req = new ProductRequest(
-                "Galletitas", "Panificados", new BigDecimal("150"), "g", null, null);
         Product saved = sampleProduct();
         saved.setName("Galletitas");
-
         when(productRepository.save(any(Product.class))).thenReturn(saved);
 
-        productService.create(req);
+        productService.create(req("Galletitas", "Panificados", new BigDecimal("150"), "g", null, null));
 
         ArgumentCaptor<Product> captor = ArgumentCaptor.forClass(Product.class);
         verify(productRepository).save(captor.capture());
@@ -150,10 +153,8 @@ class ProductServiceTest {
                 .thenReturn(Optional.of(existing));
         when(productRepository.save(any(Product.class))).thenReturn(existing);
 
-        ProductRequest req = new ProductRequest(
-                "Yerba Mate Premium", "Infusiones", new BigDecimal("1000"), "g", "RNE-002", "RNPA-002");
-
-        ProductResponse resp = productService.update(PRODUCT_ID, req);
+        productService.update(PRODUCT_ID,
+                req("Yerba Mate Premium", "Infusiones", new BigDecimal("1000"), "g", "RNE-002", "RNPA-002"));
 
         assertThat(existing.getName()).isEqualTo("Yerba Mate Premium");
         assertThat(existing.getNetWeight()).isEqualByComparingTo("1000");
@@ -166,10 +167,8 @@ class ProductServiceTest {
         when(productRepository.findByIdAndTenantId(PRODUCT_ID, TENANT_ID))
                 .thenReturn(Optional.empty());
 
-        ProductRequest req = new ProductRequest(
-                "Otro", "Cat", new BigDecimal("100"), "g", null, null);
-
-        assertThatThrownBy(() -> productService.update(PRODUCT_ID, req))
+        assertThatThrownBy(() -> productService.update(PRODUCT_ID,
+                req("Otro", "Cat", new BigDecimal("100"), "g", null, null)))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 

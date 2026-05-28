@@ -73,6 +73,13 @@ class IngredientServiceTest {
                 .build();
     }
 
+    /** Crea un IngredientRequest sin datos nutricionales (campos opcionales en null). */
+    private static IngredientRequest req(String name, BigDecimal weight, Boolean allergen) {
+        return new IngredientRequest(
+                name, weight, allergen,
+                null, null, null, null, null, null, null, null);
+    }
+
     // ── findByProduct ────────────────────────────────────────────────────────
 
     @Test
@@ -136,8 +143,7 @@ class IngredientServiceTest {
         when(ingredientRepository.sumWeightGrams(PRODUCT_ID, TENANT_ID))
                 .thenReturn(new BigDecimal("200.000"));
 
-        IngredientRequest req = new IngredientRequest("Harina de trigo", new BigDecimal("200"), null);
-        ingredientService.create(PRODUCT_ID, req);
+        ingredientService.create(PRODUCT_ID, req("Harina de trigo", new BigDecimal("200"), null));
 
         ArgumentCaptor<Ingredient> captor = ArgumentCaptor.forClass(Ingredient.class);
         verify(ingredientRepository).save(captor.capture());
@@ -157,8 +163,7 @@ class IngredientServiceTest {
                 .thenReturn(new BigDecimal("100.000"));
 
         // "avena" es alérgeno según Res. 109/2023
-        IngredientRequest req = new IngredientRequest("Avena molida", new BigDecimal("100"), null);
-        ingredientService.create(PRODUCT_ID, req);
+        ingredientService.create(PRODUCT_ID, req("Avena molida", new BigDecimal("100"), null));
 
         ArgumentCaptor<Ingredient> captor = ArgumentCaptor.forClass(Ingredient.class);
         verify(ingredientRepository).save(captor.capture());
@@ -176,8 +181,7 @@ class IngredientServiceTest {
                 .thenReturn(new BigDecimal("200.000"));
 
         // aunque "trigo" es alérgeno, si el cliente envía allergen=false se respeta
-        IngredientRequest req = new IngredientRequest("Harina de trigo", new BigDecimal("200"), false);
-        ingredientService.create(PRODUCT_ID, req);
+        ingredientService.create(PRODUCT_ID, req("Harina de trigo", new BigDecimal("200"), false));
 
         ArgumentCaptor<Ingredient> captor = ArgumentCaptor.forClass(Ingredient.class);
         verify(ingredientRepository).save(captor.capture());
@@ -195,8 +199,7 @@ class IngredientServiceTest {
         when(ingredientRepository.sumWeightGrams(PRODUCT_ID, TENANT_ID))
                 .thenReturn(new BigDecimal("150.000"));
 
-        IngredientRequest req = new IngredientRequest("Harina integral", new BigDecimal("150"), null);
-        ingredientService.update(INGREDIENT_ID, req);
+        ingredientService.update(INGREDIENT_ID, req("Harina integral", new BigDecimal("150"), null));
 
         assertThat(existing.getName()).isEqualTo("Harina integral");
         assertThat(existing.getWeightGrams()).isEqualByComparingTo("150");
@@ -207,8 +210,7 @@ class IngredientServiceTest {
         when(ingredientRepository.findByIdAndTenantId(INGREDIENT_ID, TENANT_ID))
                 .thenReturn(Optional.empty());
 
-        IngredientRequest req = new IngredientRequest("X", new BigDecimal("10"), false);
-        assertThatThrownBy(() -> ingredientService.update(INGREDIENT_ID, req))
+        assertThatThrownBy(() -> ingredientService.update(INGREDIENT_ID, req("X", new BigDecimal("10"), false)))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
