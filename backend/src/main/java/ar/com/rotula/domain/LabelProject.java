@@ -48,6 +48,14 @@ public class LabelProject {
     @Column(name = "disclaimer_by")
     private UUID disclaimerBy;
 
+    /**
+     * JSON serializado del {@code LabelDTO} generado para esta versión.
+     * Es un snapshot inmutable del rótulo tal como fue calculado en el momento
+     * de la generación.
+     */
+    @Column(name = "label_data", columnDefinition = "TEXT")
+    private String labelData;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
