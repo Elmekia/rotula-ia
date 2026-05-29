@@ -95,7 +95,19 @@ export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: 
       ].some(v => v != null)
       if (hasNutrition) setShowNutrition(true)
     } else {
-      reset({ name: '', weightGrams: undefined, allergen: false })
+      reset({
+        name:              '',
+        weightGrams:       undefined,
+        allergen:          false,
+        energyKcalPer100g: null,
+        proteinsPer100g:   null,
+        carbsPer100g:      null,
+        sugarsPer100g:     null,
+        fatTotalPer100g:   null,
+        fatSatPer100g:     null,
+        fatTransPer100g:   null,
+        sodiumMgPer100g:   null,
+      })
     }
   }, [ingredient, reset])
 
@@ -108,7 +120,7 @@ export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: 
   }, [nameValue, ingredient, setValue])
 
   function onValid(values: FormValues) {
-    onSubmit({
+    const payload = {
       name:              values.name,
       weightGrams:       values.weightGrams,
       allergen:          values.allergen,
@@ -120,7 +132,10 @@ export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: 
       fatSatPer100g:     values.fatSatPer100g ?? null,
       fatTransPer100g:   values.fatTransPer100g ?? null,
       sodiumMgPer100g:   values.sodiumMgPer100g ?? null,
-    })
+    }
+    // [DIAG] - remove after confirming nutrition data is sent correctly
+    console.log('[IngredientForm] submitting payload:', JSON.stringify(payload))
+    onSubmit(payload)
   }
 
   const isAllergenDetected = detectAllergen(nameValue)
