@@ -5,10 +5,11 @@ import { z } from 'zod'
 import { X, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
 import { detectAllergen } from '../../lib/allergenDetector'
 import type { Ingredient, IngredientRequest } from '../../types/ingredient'
+import type { FieldError } from 'react-hook-form'
 
-const optionalPositiveNumber = z.preprocess(
+const optionalNonNegativeNumber = z.preprocess(
   (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
-  z.number().positive().nullable().optional()
+  z.number().min(0, 'Debe ser 0 o mayor').nullable().optional()
 )
 
 const schema = z.object({
@@ -17,15 +18,15 @@ const schema = z.object({
     .number({ invalid_type_error: 'Debe ser un número' })
     .gt(0, 'Debe ser mayor a 0'),
   allergen: z.boolean(),
-  // Campos nutricionales opcionales
-  energyKcalPer100g: optionalPositiveNumber,
-  proteinsPer100g:   optionalPositiveNumber,
-  carbsPer100g:      optionalPositiveNumber,
-  sugarsPer100g:     optionalPositiveNumber,
-  fatTotalPer100g:   optionalPositiveNumber,
-  fatSatPer100g:     optionalPositiveNumber,
-  fatTransPer100g:   optionalPositiveNumber,
-  sodiumMgPer100g:   optionalPositiveNumber,
+  // Campos nutricionales opcionales (0 es válido, ej. grasas trans = 0 g)
+  energyKcalPer100g: optionalNonNegativeNumber,
+  proteinsPer100g:   optionalNonNegativeNumber,
+  carbsPer100g:      optionalNonNegativeNumber,
+  sugarsPer100g:     optionalNonNegativeNumber,
+  fatTotalPer100g:   optionalNonNegativeNumber,
+  fatSatPer100g:     optionalNonNegativeNumber,
+  fatTransPer100g:   optionalNonNegativeNumber,
+  sodiumMgPer100g:   optionalNonNegativeNumber,
 })
 
 type FormValues = z.infer<typeof schema>
@@ -81,8 +82,18 @@ export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: 
         fatTransPer100g:   ingredient.fatTransPer100g ?? null,
         sodiumMgPer100g:   ingredient.sodiumMgPer100g ?? null,
       })
-      // Abrir sección si ya tiene datos nutricionales
-      if (ingredient.energyKcalPer100g != null) setShowNutrition(true)
+      // Abrir sección si ya tiene algún dato nutricional cargado
+      const hasNutrition = [
+        ingredient.energyKcalPer100g,
+        ingredient.proteinsPer100g,
+        ingredient.carbsPer100g,
+        ingredient.sugarsPer100g,
+        ingredient.fatTotalPer100g,
+        ingredient.fatSatPer100g,
+        ingredient.fatTransPer100g,
+        ingredient.sodiumMgPer100g,
+      ].some(v => v != null)
+      if (hasNutrition) setShowNutrition(true)
     } else {
       reset({ name: '', weightGrams: undefined, allergen: false })
     }
@@ -218,14 +229,14 @@ export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: 
                 </p>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <NutrientField label="Energía (kcal)" placeholder="0" {...register('energyKcalPer100g')} />
-                  <NutrientField label="Proteínas (g)"  placeholder="0" {...register('proteinsPer100g')} />
-                  <NutrientField label="Carbohidratos (g)" placeholder="0" {...register('carbsPer100g')} />
-                  <NutrientField label="Azúcares (g)"  placeholder="0" {...register('sugarsPer100g')} />
-                  <NutrientField label="Grasas totales (g)" placeholder="0" {...register('fatTotalPer100g')} />
-                  <NutrientField label="Grasas saturadas (g)" placeholder="0" {...register('fatSatPer100g')} />
-                  <NutrientField label="Grasas trans (g)" placeholder="0" {...register('fatTransPer100g')} />
-                  <NutrientField label="Sodio (mg)"    placeholder="0" {...register('sodiumMgPer100g')} />
+                  <NutrientField label="Energía (kcal)"      placeholder="0" error={errors.energyKcalPer100g} {...register('energyKcalPer100g')} />
+                  <NutrientField label="Proteínas (g)"       placeholder="0" error={errors.proteinsPer100g}   {...register('proteinsPer100g')} />
+                  <NutrientField label="Carbohidratos (g)"   placeholder="0" error={errors.carbsPer100g}      {...register('carbsPer100g')} />
+                  <NutrientField label="Azúcares (g)"        placeholder="0" error={errors.sugarsPer100g}     {...register('sugarsPer100g')} />
+                  <NutrientField label="Grasas totales (g)"  placeholder="0" error={errors.fatTotalPer100g}   {...register('fatTotalPer100g')} />
+                  <NutrientField label="Grasas saturadas (g)" placeholder="0" error={errors.fatSatPer100g}   {...register('fatSatPer100g')} />
+                  <NutrientField label="Grasas trans (g)"    placeholder="0" error={errors.fatTransPer100g}   {...register('fatTransPer100g')} />
+                  <NutrientField label="Sodio (mg)"          placeholder="0" error={errors.sodiumMgPer100g}   {...register('sodiumMgPer100g')} />
                 </div>
               </div>
             )}
@@ -271,7 +282,7 @@ function inputCls(hasError: boolean) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function NutrientField({ label, placeholder, ...props }: { label: string; placeholder: string; [k: string]: any }) {
+function NutrientField({ label, placeholder, error, ...props }: { label: string; placeholder: string; error?: FieldError; [k: string]: any }) {
   return (
     <div className="space-y-0.5">
       <label className="block text-xs text-slate-500">{label}</label>
@@ -280,10 +291,15 @@ function NutrientField({ label, placeholder, ...props }: { label: string; placeh
         step="0.01"
         min="0"
         placeholder={placeholder}
-        className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg outline-none
-                   focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors"
+        className={[
+          'w-full px-2.5 py-1.5 text-sm border rounded-lg outline-none transition-colors',
+          error
+            ? 'border-red-400 focus:ring-2 focus:ring-red-300'
+            : 'border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100',
+        ].join(' ')}
         {...props}
       />
+      {error && <p className="text-xs text-red-500">{error.message}</p>}
     </div>
   )
 }
