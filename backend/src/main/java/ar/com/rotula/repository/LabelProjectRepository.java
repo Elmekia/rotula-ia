@@ -19,4 +19,10 @@ public interface LabelProjectRepository extends JpaRepository<LabelProject, UUID
     Optional<Integer> findMaxVersionByProductIdAndTenantId(
             @Param("productId") UUID productId,
             @Param("tenantId") UUID tenantId);
+
+    long countByTenantId(UUID tenantId);
+
+    long countByTenantIdAndStatus(UUID tenantId, String status);
+
+    List<LabelProject> findTop5ByTenantIdOrderByCreatedAtDesc(UUID tenantId);
 }

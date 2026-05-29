@@ -16,4 +16,6 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     Page<Product> findByTenantId(UUID tenantId, Pageable pageable);
 
     Optional<Product> findByIdAndTenantId(UUID id, UUID tenantId);
+
+    long countByTenantId(UUID tenantId);
 }

@@ -11,4 +11,24 @@ export const labelsApi = {
   getVersions(productId: string): Promise<LabelVersionSummary[]> {
     return api.get<LabelVersionSummary[]>(`/labels/${productId}/versions`).then(r => r.data)
   },
+
+  /**
+   * Descarga el PDF del rótulo con las dimensiones indicadas.
+   * Devuelve una URL de objeto Blob para disparar la descarga en el navegador.
+   */
+  async exportPdf(
+    labelId: string,
+    widthCm = 10,
+    heightCm = 15,
+  ): Promise<{ url: string; filename: string }> {
+    const response = await api.get(`/labels/${labelId}/export`, {
+      params: { widthCm, heightCm },
+      responseType: 'blob',
+    })
+    const disposition: string = response.headers['content-disposition'] ?? ''
+    const match = disposition.match(/filename="([^"]+)"/)
+    const filename = match ? match[1] : `rotulo_${labelId}.pdf`
+    const url = URL.createObjectURL(response.data as Blob)
+    return { url, filename }
+  },
 }
