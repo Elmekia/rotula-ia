@@ -152,8 +152,14 @@ export function LabelWizard() {
 
   // ── Paso 3: nutrición ─────────────────────────────────────────────────────
   function Step3() {
-    const withNutrition = ingredients.filter(i => i.energyKcalPer100g != null)
-    const withoutNutrition = ingredients.filter(i => i.energyKcalPer100g == null)
+    const hasAnyNutrition = (i: typeof ingredients[0]) =>
+      i.energyKcalPer100g != null || i.proteinsPer100g  != null ||
+      i.carbsPer100g       != null || i.sugarsPer100g    != null ||
+      i.fatTotalPer100g    != null || i.fatSatPer100g    != null ||
+      i.fatTransPer100g    != null || i.sodiumMgPer100g  != null
+
+    const withNutrition    = ingredients.filter(i =>  hasAnyNutrition(i))
+    const withoutNutrition = ingredients.filter(i => !hasAnyNutrition(i))
     const complete = withNutrition.length === ingredients.length && ingredients.length > 0
 
     return (
