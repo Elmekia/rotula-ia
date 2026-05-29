@@ -6,6 +6,7 @@ import { Dashboard } from './pages/Dashboard'
 import { Products } from './pages/Products'
 import { ProductDetail } from './pages/ProductDetail'
 import { Labels } from './pages/Labels'
+import { LabelWizard } from './pages/LabelWizard'
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
             <Route path="/products"        element={<Products />} />
             <Route path="/products/:id"    element={<ProductDetail />} />
             <Route path="/labels"          element={<Labels />} />
+            <Route path="/labels/new"      element={<LabelWizard />} />
           </Route>
         </Route>
 
