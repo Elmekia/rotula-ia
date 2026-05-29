@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, FlaskConical, Loader2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { analysisApi } from '../../lib/analysisApi'
+import { productsApi } from '../../lib/productsApi'
 import type { LabelAnalysisResult, RoundedNutritionValues } from '../../types/product'
 
 interface Props {
@@ -13,6 +15,13 @@ export function LabelAnalysisPanel({ productId }: Props) {
     queryFn:  () => analysisApi.analyze(productId),
     enabled:  !!productId,
     staleTime: 30_000,
+  })
+
+  const { data: product } = useQuery({
+    queryKey: ['product', productId],
+    queryFn:  () => productsApi.getById(productId),
+    enabled:  !!productId,
+    staleTime: 60_000,
   })
 
   if (isLoading) {
@@ -40,10 +49,27 @@ export function LabelAnalysisPanel({ productId }: Props) {
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <SectionHeader icon={<FlaskConical className="w-4 h-4 text-slate-500" />} title="Tabla nutricional" />
-          <p className="text-sm text-slate-400 mt-2">
-            Cargá los datos nutricionales en los ingredientes y una porción de referencia en el producto para
-            calcular la tabla.
-          </p>
+          {!product?.servingSizeG ? (
+            <div className="mt-3 flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>
+                Este producto no tiene <strong>porción de referencia</strong> configurada, que es necesaria para
+                calcular la tabla nutricional.{' '}
+                <Link
+                  to={`/products/${productId}`}
+                  className="font-semibold underline hover:text-amber-900"
+                >
+                  Editar producto para agregarla →
+                </Link>
+              </span>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-400 mt-2">
+              Cargá los datos nutricionales en los ingredientes para calcular la tabla.
+              Abrí cada ingrediente y completá la sección{' '}
+              <em>Información nutricional por 100 g</em>.
+            </p>
+          )}
         </div>
       )}
 
