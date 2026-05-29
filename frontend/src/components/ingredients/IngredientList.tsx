@@ -29,10 +29,15 @@ export function IngredientList({ product }: Props) {
   })
 
   // ── Mutations ────────────────────────────────────────────────────────────
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ['ingredients', product.id] })
+    qc.invalidateQueries({ queryKey: ['analysis',    product.id] })
+  }
+
   const createMut = useMutation({
     mutationFn: (req: IngredientRequest) => ingredientsApi.create(product.id, req),
     onSuccess() {
-      qc.invalidateQueries({ queryKey: ['ingredients', product.id] })
+      invalidateAll()
       setFormOpen(false)
       addToast('Ingrediente agregado')
     },
@@ -46,7 +51,7 @@ export function IngredientList({ product }: Props) {
     mutationFn: ({ id, req }: { id: string; req: IngredientRequest }) =>
       ingredientsApi.update(id, req),
     onSuccess() {
-      qc.invalidateQueries({ queryKey: ['ingredients', product.id] })
+      invalidateAll()
       setFormOpen(false)
       setEditTarget(null)
       addToast('Ingrediente actualizado')
@@ -60,7 +65,7 @@ export function IngredientList({ product }: Props) {
   const deleteMut = useMutation({
     mutationFn: (id: string) => ingredientsApi.delete(id),
     onSuccess() {
-      qc.invalidateQueries({ queryKey: ['ingredients', product.id] })
+      invalidateAll()
       setDeleteTarget(null)
       addToast('Ingrediente eliminado')
     },
