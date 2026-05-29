@@ -44,7 +44,7 @@ public class NutritionCalculatorService {
         boolean hasData = false;
 
         for (Ingredient i : ingredients) {
-            if (i.getEnergyKcalPer100g() == null) continue;
+            if (!hasAnyNutrition(i)) continue;
             hasData = true;
 
             double w = i.getWeightGrams().doubleValue() / 100.0;
@@ -105,5 +105,21 @@ public class NutritionCalculatorService {
 
     private static double nullToZero(BigDecimal v) {
         return v == null ? 0.0 : v.doubleValue();
+    }
+
+    /**
+     * Un ingrediente tiene datos nutricionales si al menos uno de sus campos
+     * por-100g es no nulo.  El usuario puede no haber cargado kcal pero sí
+     * proteínas, grasas y sodio, y eso es suficiente para incluirlo en el cálculo.
+     */
+    private static boolean hasAnyNutrition(Ingredient i) {
+        return i.getEnergyKcalPer100g() != null
+            || i.getProteinsPer100g()    != null
+            || i.getCarbsPer100g()       != null
+            || i.getSugarsPer100g()      != null
+            || i.getFatTotalPer100g()    != null
+            || i.getFatSatPer100g()      != null
+            || i.getFatTransPer100g()    != null
+            || i.getSodiumMgPer100g()    != null;
     }
 }
