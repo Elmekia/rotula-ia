@@ -8,6 +8,7 @@ import ar.com.rotula.security.JwtService;
 import ar.com.rotula.service.IngredientService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -20,6 +21,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -102,6 +104,49 @@ class IngredientControllerIT {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").exists());
+    }
+
+    /**
+     * Verifica que Jackson desserializa correctamente los campos nutricionales
+     * del JSON hacia el record IngredientRequest. Esto es crítico porque los
+     * records Java requieren que los nombres de parámetros del constructor estén
+     * disponibles vía reflexión (flag -parameters o soporte nativo de records en Java 16+).
+     */
+    @Test
+    @WithMockUser
+    void create_deserializa_campos_nutricionales_correctamente() throws Exception {
+        IngredientRequest req = new IngredientRequest(
+                "Harina de trigo", new BigDecimal("200"), false,
+                new BigDecimal("364.00"),  // energyKcalPer100g
+                new BigDecimal("10.50"),   // proteinsPer100g
+                new BigDecimal("72.30"),   // carbsPer100g
+                new BigDecimal("1.20"),    // sugarsPer100g
+                new BigDecimal("2.10"),    // fatTotalPer100g
+                new BigDecimal("0.50"),    // fatSatPer100g
+                new BigDecimal("0.00"),    // fatTransPer100g
+                new BigDecimal("5.00")     // sodiumMgPer100g
+        );
+        when(ingredientService.create(eq(PRODUCT_ID), any())).thenReturn(sampleResponse());
+
+        ArgumentCaptor<IngredientRequest> captor = ArgumentCaptor.forClass(IngredientRequest.class);
+
+        mockMvc.perform(post("/products/{id}/ingredients", PRODUCT_ID)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated());
+
+        verify(ingredientService).create(eq(PRODUCT_ID), captor.capture());
+        IngredientRequest received = captor.getValue();
+
+        assertThat(received.energyKcalPer100g()).isEqualByComparingTo("364.00");
+        assertThat(received.proteinsPer100g()).isEqualByComparingTo("10.50");
+        assertThat(received.carbsPer100g()).isEqualByComparingTo("72.30");
+        assertThat(received.sugarsPer100g()).isEqualByComparingTo("1.20");
+        assertThat(received.fatTotalPer100g()).isEqualByComparingTo("2.10");
+        assertThat(received.fatSatPer100g()).isEqualByComparingTo("0.50");
+        assertThat(received.fatTransPer100g()).isEqualByComparingTo("0.00");
+        assertThat(received.sodiumMgPer100g()).isEqualByComparingTo("5.00");
     }
 
     @Test
