@@ -8,8 +8,6 @@ import ar.com.rotula.repository.IngredientRepository;
 import ar.com.rotula.repository.ProductRepository;
 import ar.com.rotula.security.AppUserDetails;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,8 +20,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class IngredientService {
-
-    private static final Logger log = LoggerFactory.getLogger(IngredientService.class);
 
     private final IngredientRepository ingredientRepository;
     private final ProductRepository    productRepository;
@@ -52,13 +48,6 @@ public class IngredientService {
 
     @Transactional
     public IngredientResponse create(UUID productId, IngredientRequest req) {
-        log.info("[DIAG] create() req received: name='{}', weightGrams={}, allergen={}",
-                req.name(), req.weightGrams(), req.allergen());
-        log.info("[DIAG] nutrition fields: kcal={}, proteins={}, carbs={}, sugars={}, fatTotal={}, fatSat={}, fatTrans={}, sodium={}",
-                req.energyKcalPer100g(), req.proteinsPer100g(), req.carbsPer100g(),
-                req.sugarsPer100g(), req.fatTotalPer100g(), req.fatSatPer100g(),
-                req.fatTransPer100g(), req.sodiumMgPer100g());
-
         AppUserDetails user = currentUser();
         requireProductOwned(productId, user.getTenantId());
 

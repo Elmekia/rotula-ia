@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { forwardRef, useEffect, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -120,7 +120,7 @@ export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: 
   }, [nameValue, ingredient, setValue])
 
   function onValid(values: FormValues) {
-    const payload = {
+    onSubmit({
       name:              values.name,
       weightGrams:       values.weightGrams,
       allergen:          values.allergen,
@@ -132,10 +132,7 @@ export function IngredientForm({ ingredient, isSubmitting, onSubmit, onClose }: 
       fatSatPer100g:     values.fatSatPer100g ?? null,
       fatTransPer100g:   values.fatTransPer100g ?? null,
       sodiumMgPer100g:   values.sodiumMgPer100g ?? null,
-    }
-    // [DIAG] - remove after confirming nutrition data is sent correctly
-    console.log('[IngredientForm] submitting payload:', JSON.stringify(payload))
-    onSubmit(payload)
+    })
   }
 
   const isAllergenDetected = detectAllergen(nameValue)
@@ -296,12 +293,19 @@ function inputCls(hasError: boolean) {
   ].join(' ')
 }
 
+/**
+ * forwardRef is required so that RHF's ref callback (from register()) reaches
+ * the <input> DOM element. Without it, React 18 does NOT pass the ref through
+ * a plain function component, so RHF never sets _f.mount = true and the
+ * onChange handler becomes a no-op — values stay null on submit.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function NutrientField({ label, placeholder, error, ...props }: { label: string; placeholder: string; error?: FieldError; [k: string]: any }) {
-  return (
+const NutrientField = forwardRef<HTMLInputElement, { label: string; placeholder: string; error?: FieldError; [k: string]: any }>(
+  ({ label, placeholder, error, ...props }, ref) => (
     <div className="space-y-0.5">
       <label className="block text-xs text-slate-500">{label}</label>
       <input
+        ref={ref}
         type="number"
         step="0.01"
         min="0"
@@ -317,4 +321,4 @@ function NutrientField({ label, placeholder, error, ...props }: { label: string;
       {error && <p className="text-xs text-red-500">{error.message}</p>}
     </div>
   )
-}
+)
