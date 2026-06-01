@@ -1,10 +1,14 @@
 package ar.com.rotula.service;
 
+import ar.com.rotula.domain.FoodGroup;
+import ar.com.rotula.domain.FoodItem;
 import ar.com.rotula.domain.Product;
 import ar.com.rotula.dto.PageResponse;
 import ar.com.rotula.dto.ProductRequest;
 import ar.com.rotula.dto.ProductResponse;
 import ar.com.rotula.exception.ResourceNotFoundException;
+import ar.com.rotula.repository.FoodGroupRepository;
+import ar.com.rotula.repository.FoodItemRepository;
 import ar.com.rotula.repository.ProductRepository;
 import ar.com.rotula.security.AppUserDetails;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,15 +38,17 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class ProductServiceTest {
 
-    @Mock
-    ProductRepository productRepository;
+    @Mock ProductRepository   productRepository;
+    @Mock FoodGroupRepository foodGroupRepository;
+    @Mock FoodItemRepository  foodItemRepository;
 
-    @InjectMocks
-    ProductService productService;
+    @InjectMocks ProductService productService;
 
-    private static final UUID TENANT_ID = UUID.randomUUID();
-    private static final UUID USER_ID   = UUID.randomUUID();
-    private static final UUID PRODUCT_ID = UUID.randomUUID();
+    private static final UUID TENANT_ID    = UUID.randomUUID();
+    private static final UUID USER_ID      = UUID.randomUUID();
+    private static final UUID PRODUCT_ID   = UUID.randomUUID();
+    private static final UUID FOOD_GROUP_ID = UUID.randomUUID();
+    private static final UUID FOOD_ITEM_ID  = UUID.randomUUID();
 
     @BeforeEach
     void setupSecurityContext() {
@@ -57,25 +63,56 @@ class ProductServiceTest {
                 .id(PRODUCT_ID)
                 .tenantId(TENANT_ID)
                 .createdBy(USER_ID)
-                .name("Yerba Mate")
-                .category("Infusiones")
-                .netWeight(new BigDecimal("500.000"))
+                .name("Galletitas de avena")
+                .denomination("Galletitas dulces de avena")
+                .foodGroupId(FOOD_GROUP_ID)
+                .foodItemId(FOOD_ITEM_ID)
+                .servingSizeG(BigDecimal.valueOf(30))
+                .netWeight(new BigDecimal("200.000"))
                 .weightUnit("g")
-                .rneNumber("RNE-001")
-                .rnpaNumber("RNPA-001")
+                .rnpaNumber("12345678")
+                .showIngredientPercentages(false)
                 .status("draft")
                 .createdAt(OffsetDateTime.now())
                 .updatedAt(OffsetDateTime.now())
                 .build();
     }
 
-    /** Helper para crear ProductRequest sin campos opcionales nuevos. */
-    private static ProductRequest req(String name, String category, BigDecimal weight,
-                                      String unit, String rne, String rnpa) {
-        return new ProductRequest(name, category, weight, unit, rne, rnpa, null, null);
+    private FoodGroup sampleFoodGroup() {
+        return FoodGroup.builder()
+                .id(FOOD_GROUP_ID)
+                .code("G1")
+                .name("Panificados")
+                .sortOrder((short) 1)
+                .active(true)
+                .build();
     }
 
-    // ── findAll ─────────────────────────────────────────────────────────────
+    private FoodItem sampleFoodItem() {
+        return FoodItem.builder()
+                .id(FOOD_ITEM_ID)
+                .foodGroupId(FOOD_GROUP_ID)
+                .name("Galletitas")
+                .portionGrams(BigDecimal.valueOf(30))
+                .unit("g")
+                .sortOrder((short) 1)
+                .active(true)
+                .build();
+    }
+
+    /** ProductRequest completo con los campos mínimos necesarios para los tests. */
+    private ProductRequest req(String name, String denomination) {
+        return new ProductRequest(
+                name, denomination,
+                FOOD_GROUP_ID, FOOD_ITEM_ID, null,
+                new BigDecimal("200"), "g",
+                null, "12345678",
+                List.of(), false,
+                null, null, null, null, null, null, null, null
+        );
+    }
+
+    // ── findAll ──────────────────────────────────────────────────────────────
 
     @Test
     void findAll_devuelve_pagina_del_tenant() {
@@ -86,7 +123,7 @@ class ProductServiceTest {
         PageResponse<ProductResponse> result = productService.findAll(0, 20, "name,asc");
 
         assertThat(result.content()).hasSize(1);
-        assertThat(result.content().get(0).name()).isEqualTo("Yerba Mate");
+        assertThat(result.content().get(0).name()).isEqualTo("Galletitas de avena");
         assertThat(result.totalElements()).isEqualTo(1);
         assertThat(result.page()).isEqualTo(0);
     }
@@ -112,7 +149,8 @@ class ProductServiceTest {
         ProductResponse resp = productService.findById(PRODUCT_ID);
 
         assertThat(resp.id()).isEqualTo(PRODUCT_ID);
-        assertThat(resp.name()).isEqualTo("Yerba Mate");
+        assertThat(resp.name()).isEqualTo("Galletitas de avena");
+        assertThat(resp.denomination()).isEqualTo("Galletitas dulces de avena");
     }
 
     @Test
@@ -128,12 +166,12 @@ class ProductServiceTest {
     // ── create ───────────────────────────────────────────────────────────────
 
     @Test
-    void create_asigna_tenantId_y_createdBy() {
-        Product saved = sampleProduct();
-        saved.setName("Galletitas");
-        when(productRepository.save(any(Product.class))).thenReturn(saved);
+    void create_asigna_tenantId_createdBy_y_porcion_del_alimento() {
+        when(foodGroupRepository.findById(FOOD_GROUP_ID)).thenReturn(Optional.of(sampleFoodGroup()));
+        when(foodItemRepository.findById(FOOD_ITEM_ID)).thenReturn(Optional.of(sampleFoodItem()));
+        when(productRepository.save(any(Product.class))).thenReturn(sampleProduct());
 
-        productService.create(req("Galletitas", "Panificados", new BigDecimal("150"), "g", null, null));
+        productService.create(req("Galletitas de avena", "Galletitas dulces de avena"));
 
         ArgumentCaptor<Product> captor = ArgumentCaptor.forClass(Product.class);
         verify(productRepository).save(captor.capture());
@@ -142,23 +180,50 @@ class ProductServiceTest {
         assertThat(captured.getTenantId()).isEqualTo(TENANT_ID);
         assertThat(captured.getCreatedBy()).isEqualTo(USER_ID);
         assertThat(captured.getStatus()).isEqualTo("draft");
+        // La porción viene del food_item, no del request
+        assertThat(captured.getServingSizeG()).isEqualByComparingTo("30");
+    }
+
+    @Test
+    void create_lanza_excepcion_si_food_item_no_pertenece_al_grupo() {
+        UUID otroGrupo = UUID.randomUUID();
+        FoodItem itemDeOtroGrupo = FoodItem.builder()
+                .id(FOOD_ITEM_ID)
+                .foodGroupId(otroGrupo)   // pertenece a otro grupo
+                .name("Otro alimento")
+                .portionGrams(BigDecimal.valueOf(50))
+                .unit("g")
+                .active(true)
+                .build();
+        when(foodGroupRepository.findById(FOOD_GROUP_ID)).thenReturn(Optional.of(sampleFoodGroup()));
+        when(foodItemRepository.findById(FOOD_ITEM_ID)).thenReturn(Optional.of(itemDeOtroGrupo));
+
+        assertThatThrownBy(() -> productService.create(req("X", "Y")))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     // ── update ───────────────────────────────────────────────────────────────
 
     @Test
-    void update_modifica_campos_del_producto() {
+    void update_modifica_campos_y_porcion() {
         Product existing = sampleProduct();
+        FoodItem nuevoItem = FoodItem.builder()
+                .id(FOOD_ITEM_ID).foodGroupId(FOOD_GROUP_ID)
+                .name("Galletitas premium").portionGrams(BigDecimal.valueOf(40))
+                .unit("g").active(true).build();
+
         when(productRepository.findByIdAndTenantId(PRODUCT_ID, TENANT_ID))
                 .thenReturn(Optional.of(existing));
+        when(foodGroupRepository.findById(FOOD_GROUP_ID)).thenReturn(Optional.of(sampleFoodGroup()));
+        when(foodItemRepository.findById(FOOD_ITEM_ID)).thenReturn(Optional.of(nuevoItem));
         when(productRepository.save(any(Product.class))).thenReturn(existing);
 
-        productService.update(PRODUCT_ID,
-                req("Yerba Mate Premium", "Infusiones", new BigDecimal("1000"), "g", "RNE-002", "RNPA-002"));
+        productService.update(PRODUCT_ID, req("Galletitas premium", "Galletitas dulces premium"));
 
-        assertThat(existing.getName()).isEqualTo("Yerba Mate Premium");
-        assertThat(existing.getNetWeight()).isEqualByComparingTo("1000");
-        assertThat(existing.getRneNumber()).isEqualTo("RNE-002");
+        assertThat(existing.getName()).isEqualTo("Galletitas premium");
+        assertThat(existing.getDenomination()).isEqualTo("Galletitas dulces premium");
+        // La porción se actualiza al valor del nuevo food_item
+        assertThat(existing.getServingSizeG()).isEqualByComparingTo("40");
         verify(productRepository).save(existing);
     }
 
@@ -167,8 +232,7 @@ class ProductServiceTest {
         when(productRepository.findByIdAndTenantId(PRODUCT_ID, TENANT_ID))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> productService.update(PRODUCT_ID,
-                req("Otro", "Cat", new BigDecimal("100"), "g", null, null)))
+        assertThatThrownBy(() -> productService.update(PRODUCT_ID, req("Otro", "Cat")))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 

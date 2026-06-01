@@ -17,7 +17,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,9 +59,14 @@ public class LegalNameService {
         Product product = productRepository.findByIdAndTenantId(productId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado: " + productId));
 
-        // 1. Lookup de denominación legal por categoría
+        // 1. Lookup de denominación legal por denominación del producto
+        // La denominación del alimento (ingresada por el usuario) se usa como
+        // clave de búsqueda; si no hay coincidencia exacta, se retorna sin nombre legal.
+        String denomKey = product.getDenomination() != null
+                ? product.getDenomination().trim()
+                : product.getName().trim();
         Optional<RegulatoryName> rn = regulatoryNameRepository
-                .findByCategoryIgnoreCaseAndActiveTrue(product.getCategory().trim());
+                .findByCategoryIgnoreCaseAndActiveTrue(denomKey);
 
         if (rn.isEmpty()) {
             return new LegalNameSuggestion(null, List.of(), false, null);
@@ -101,20 +105,8 @@ public class LegalNameService {
      * <p>Los claims "sin" tienen prioridad sobre "bajo en" para el mismo nutriente.
      */
     List<String> buildNutritionalModifiers(UUID productId, UUID tenantId, Product product) {
-        List<Ingredient> ingredients = ingredientRepository
-                .findByProductIdAndTenantIdOrderByWeightGramsDesc(productId, tenantId);
-
-        if (ingredients.isEmpty() || product.getServingSizeG() == null) {
-            return List.of();
-        }
-
-        BigDecimal totalWeight = ingredients.stream()
-                .map(Ingredient::getWeightGrams)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        NutritionCalculationResult result = nutritionCalculator
-                .calculate(ingredients, totalWeight, product.getServingSizeG());
-
+        // La nutrición ahora vive en el producto; calculamos directo desde sus campos.
+        NutritionCalculationResult result = nutritionCalculator.calculate(product);
         if (result == null) return List.of();
 
         NutritionValues raw = result.rawPer100g();

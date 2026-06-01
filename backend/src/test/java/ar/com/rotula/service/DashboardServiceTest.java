@@ -67,7 +67,7 @@ class DashboardServiceTest {
         LabelProject lp = buildLabelProject(UUID.randomUUID(), PRODUCT_ID, 1, "draft", "Galletita Cracker");
         Product product = Product.builder()
                 .id(PRODUCT_ID).tenantId(TENANT_ID)
-                .name("Galletita Cracker").category("panificados")
+                .name("Galletita Cracker").denomination("Galletitas dulces de avena")
                 .status("active")
                 .createdAt(OffsetDateTime.now()).updatedAt(OffsetDateTime.now())
                 .build();
@@ -121,7 +121,7 @@ class DashboardServiceTest {
         );
         Product product = Product.builder()
                 .id(PRODUCT_ID).tenantId(TENANT_ID).name("Prod")
-                .category("panificados").status("active")
+                .denomination("Galletitas").status("active")
                 .createdAt(OffsetDateTime.now()).updatedAt(OffsetDateTime.now()).build();
 
         when(productRepository.countByTenantId(any())).thenReturn(1L);

@@ -26,7 +26,7 @@ import java.util.UUID;
  * @param productId        ID del producto de origen.
  * @param productName      Nombre comercial del producto.
  * @param legalDenomination Denominación legal sugerida según CAA (puede ser null).
- * @param category         Categoría del producto.
+ * @param category         Denominación del alimento (antes: categoría).
  * @param netWeight        Peso / volumen neto.
  * @param weightUnit       Unidad del peso neto.
  * @param rneNumber        Número RNE (puede ser null).

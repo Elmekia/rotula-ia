@@ -98,7 +98,7 @@ public class LabelGenerationService {
                 productId,
                 product.getName(),
                 legalName.suggestedName(),
-                product.getCategory(),
+                product.getDenomination(),
                 product.getNetWeight(),
                 product.getWeightUnit(),
                 product.getRneNumber(),

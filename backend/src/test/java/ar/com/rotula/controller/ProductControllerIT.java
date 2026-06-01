@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,15 +29,6 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/**
- * Slice test for ProductController.
- *
- * - @MockBean JwtService: lets the real JwtAuthFilter load (it depends on JwtService) but
- *   requests without a Bearer token pass through automatically.
- * - @WithMockUser: sets up an authenticated principal in the SecurityContext so that
- *   Spring Security's AuthorizationFilter allows the request.
- * - No CSRF tokens needed because SecurityConfig explicitly disables CSRF.
- */
 @WebMvcTest(ProductController.class)
 class ProductControllerIT {
 
@@ -47,17 +39,38 @@ class ProductControllerIT {
     @MockBean JwtService jwtService;
     @MockBean TenantDataSourceWrapper tenantDataSourceWrapper;
 
-    private static final UUID TENANT_ID  = UUID.randomUUID();
-    private static final UUID USER_ID    = UUID.randomUUID();
-    private static final UUID PRODUCT_ID = UUID.randomUUID();
+    private static final UUID TENANT_ID    = UUID.randomUUID();
+    private static final UUID USER_ID      = UUID.randomUUID();
+    private static final UUID PRODUCT_ID   = UUID.randomUUID();
+    private static final UUID FOOD_GROUP_ID = UUID.randomUUID();
+    private static final UUID FOOD_ITEM_ID  = UUID.randomUUID();
 
     private ProductResponse sampleResponse() {
         return new ProductResponse(
-                PRODUCT_ID, TENANT_ID, "Yerba Mate", "Infusiones",
-                new BigDecimal("500.000"), "g", "RNE-001", "RNPA-001",
-                "draft",
-                null, null,   // servingSizeG, crossContamination
-                USER_ID, OffsetDateTime.now(), OffsetDateTime.now()
+                PRODUCT_ID, TENANT_ID,
+                "Galletitas de avena",          // name
+                "Galletitas dulces de avena",   // denomination
+                FOOD_GROUP_ID, FOOD_ITEM_ID,    // foodGroupId, foodItemId
+                BigDecimal.valueOf(30),          // servingSizeG
+                new BigDecimal("200.000"), "g", // netWeight, weightUnit
+                null, "12345678",               // rneNumber, rnpaNumber
+                Collections.emptyList(),        // crossContaminationGroups
+                false,                          // showIngredientPercentages
+                // 8 campos nutricionales (todos null)
+                null, null, null, null, null, null, null, null,
+                "draft", USER_ID, OffsetDateTime.now(), OffsetDateTime.now()
+        );
+    }
+
+    /** ProductRequest mínimo válido para tests del controller. */
+    private ProductRequest sampleRequest(String name) {
+        return new ProductRequest(
+                name, "Denominación de " + name,
+                FOOD_GROUP_ID, FOOD_ITEM_ID, null,
+                new BigDecimal("200"), "g",
+                null, "12345678",
+                List.of(), false,
+                null, null, null, null, null, null, null, null
         );
     }
 
@@ -72,7 +85,7 @@ class ProductControllerIT {
 
         mockMvc.perform(get("/products"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].name").value("Yerba Mate"))
+                .andExpect(jsonPath("$.content[0].name").value("Galletitas de avena"))
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.page").value(0));
     }
@@ -93,7 +106,8 @@ class ProductControllerIT {
         mockMvc.perform(get("/products/{id}", PRODUCT_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(PRODUCT_ID.toString()))
-                .andExpect(jsonPath("$.category").value("Infusiones"));
+                .andExpect(jsonPath("$.denomination").value("Galletitas dulces de avena"))
+                .andExpect(jsonPath("$.rnpaNumber").value("12345678"));
     }
 
     @Test
@@ -112,15 +126,12 @@ class ProductControllerIT {
     @Test
     @WithMockUser
     void create_retorna_201_con_producto() throws Exception {
-        ProductRequest req = new ProductRequest(
-                "Galletitas", "Panificados", new BigDecimal("150"), "g",
-                null, null, null, null);
         when(productService.create(any(ProductRequest.class))).thenReturn(sampleResponse());
 
         mockMvc.perform(post("/products")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+                        .content(objectMapper.writeValueAsString(sampleRequest("Galletitas"))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").exists());
     }
@@ -129,7 +140,13 @@ class ProductControllerIT {
     @WithMockUser
     void create_retorna_400_si_nombre_vacio() throws Exception {
         ProductRequest req = new ProductRequest(
-                "", "Cat", new BigDecimal("100"), "g", null, null, null, null);
+                "", "Denominación válida",
+                FOOD_GROUP_ID, FOOD_ITEM_ID, null,
+                new BigDecimal("100"), "g",
+                null, "12345678",
+                List.of(), false,
+                null, null, null, null, null, null, null, null
+        );
 
         mockMvc.perform(post("/products")
                         .with(csrf())
@@ -141,9 +158,35 @@ class ProductControllerIT {
 
     @Test
     @WithMockUser
+    void create_retorna_400_si_rnpa_vacio() throws Exception {
+        ProductRequest req = new ProductRequest(
+                "Producto válido", "Denominación válida",
+                FOOD_GROUP_ID, FOOD_ITEM_ID, null,
+                new BigDecimal("100"), "g",
+                null, "",           // rnpaNumber vacío → viola @NotBlank
+                List.of(), false,
+                null, null, null, null, null, null, null, null
+        );
+
+        mockMvc.perform(post("/products")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fields.rnpaNumber").exists());
+    }
+
+    @Test
+    @WithMockUser
     void create_retorna_400_si_unidad_invalida() throws Exception {
         ProductRequest req = new ProductRequest(
-                "Producto", "Cat", new BigDecimal("100"), "oz", null, null, null, null);
+                "Producto", "Denominación",
+                FOOD_GROUP_ID, FOOD_ITEM_ID, null,
+                new BigDecimal("100"), "oz",  // unidad inválida
+                null, "12345678",
+                List.of(), false,
+                null, null, null, null, null, null, null, null
+        );
 
         mockMvc.perform(post("/products")
                         .with(csrf())
@@ -158,38 +201,27 @@ class ProductControllerIT {
     @Test
     @WithMockUser
     void update_retorna_producto_modificado() throws Exception {
-        ProductRequest req = new ProductRequest(
-                "Yerba Premium", "Infusiones", new BigDecimal("1000"), "g",
-                "RNE-002", null, null, null);
-        ProductResponse updated = new ProductResponse(
-                PRODUCT_ID, TENANT_ID, "Yerba Premium", "Infusiones",
-                new BigDecimal("1000"), "g", "RNE-002", null,
-                "draft",
-                null, null,   // servingSizeG, crossContamination
-                USER_ID, OffsetDateTime.now(), OffsetDateTime.now()
-        );
+        ProductResponse updated = sampleResponse();
         when(productService.update(eq(PRODUCT_ID), any(ProductRequest.class))).thenReturn(updated);
 
         mockMvc.perform(put("/products/{id}", PRODUCT_ID)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+                        .content(objectMapper.writeValueAsString(sampleRequest("Galletitas Premium"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Yerba Premium"));
+                .andExpect(jsonPath("$.name").exists());
     }
 
     @Test
     @WithMockUser
     void update_retorna_404_si_no_existe() throws Exception {
-        ProductRequest req = new ProductRequest(
-                "Prod", "Cat", new BigDecimal("100"), "g", null, null, null, null);
         when(productService.update(eq(PRODUCT_ID), any()))
                 .thenThrow(new ResourceNotFoundException("Producto no encontrado: " + PRODUCT_ID));
 
         mockMvc.perform(put("/products/{id}", PRODUCT_ID)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+                        .content(objectMapper.writeValueAsString(sampleRequest("Prod"))))
                 .andExpect(status().isNotFound());
     }
 
@@ -200,8 +232,7 @@ class ProductControllerIT {
     void delete_retorna_204() throws Exception {
         doNothing().when(productService).delete(PRODUCT_ID);
 
-        mockMvc.perform(delete("/products/{id}", PRODUCT_ID)
-                        .with(csrf()))
+        mockMvc.perform(delete("/products/{id}", PRODUCT_ID).with(csrf()))
                 .andExpect(status().isNoContent());
 
         verify(productService).delete(PRODUCT_ID);
@@ -213,8 +244,7 @@ class ProductControllerIT {
         doThrow(new ResourceNotFoundException("Producto no encontrado: " + PRODUCT_ID))
                 .when(productService).delete(PRODUCT_ID);
 
-        mockMvc.perform(delete("/products/{id}", PRODUCT_ID)
-                        .with(csrf()))
+        mockMvc.perform(delete("/products/{id}", PRODUCT_ID).with(csrf()))
                 .andExpect(status().isNotFound());
     }
 }
