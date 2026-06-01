@@ -17,7 +17,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -52,22 +51,15 @@ public class LabelAnalysisService {
                 .findByProductIdAndTenantIdOrderByWeightGramsDesc(productId, tenantId);
 
         // ── Tabla nutricional ─────────────────────────────────────────────────
-        NutritionCalculationResult nutrition = null;
+        // La nutrición se carga directamente en el producto (por 100 g); el
+        // calculador escala a por-porción usando product.serving_size_g.
+        NutritionCalculationResult nutrition = nutritionCalculator.calculate(product);
         Set<String> seals = Set.of();
 
-        if (product.getServingSizeG() != null && !ingredients.isEmpty()) {
-            BigDecimal totalWeight = ingredients.stream()
-                    .map(Ingredient::getWeightGrams)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            nutrition = nutritionCalculator.calculate(ingredients, totalWeight, product.getServingSizeG());
-
-            // ── Sellos de advertencia ─────────────────────────────────────────
-            if (nutrition != null) {
-                boolean isLiquid = isLiquidProduct(product.getWeightUnit());
-                NutritionValues raw100g = nutrition.rawPer100g();
-                seals = sealEvaluator.evaluate(raw100g, isLiquid);
-            }
+        if (nutrition != null) {
+            boolean isLiquid = isLiquidProduct(product.getWeightUnit());
+            NutritionValues raw100g = nutrition.rawPer100g();
+            seals = sealEvaluator.evaluate(raw100g, isLiquid);
         }
 
         // ── Declaración de alérgenos ──────────────────────────────────────────

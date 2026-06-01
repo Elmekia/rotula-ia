@@ -1,26 +1,18 @@
 package ar.com.rotula.service.nutrition;
 
-import ar.com.rotula.domain.Ingredient;
+import ar.com.rotula.domain.Product;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 /**
- * Calcula la tabla nutricional de un producto a partir de la lista de
- * ingredientes con datos nutricionales por 100 g.
+ * Calcula la tabla nutricional de un producto a partir de los valores por 100 g
+ * cargados directamente en el producto (CAA Art. 1354).
  *
- * <p>El cálculo sigue la metodología del CAA Art. 1354:
- * <ol>
- *   <li>Suma la contribución nutricional de cada ingrediente
- *       (campo_per100g × weightGrams / 100).</li>
- *   <li>Divide el total por el peso total del producto para obtener valores
- *       por 100 g del producto.</li>
- *   <li>Escala por el tamaño de porción para obtener valores por porción.</li>
- *   <li>Aplica el redondeo según {@link NutritionRounder}.</li>
- * </ol>
+ * <p>Fórmula: valor_por_porción = valor_por_100g × serving_size_g / 100
  *
- * <p>Retorna {@code null} si ningún ingrediente tiene datos nutricionales cargados.
+ * <p>Retorna {@code null} si el producto no tiene datos nutricionales o no tiene
+ * porción de referencia definida.
  */
 @Service
 public class NutritionCalculatorService {
@@ -28,67 +20,43 @@ public class NutritionCalculatorService {
     private static final double KJ_PER_KCAL = 4.184;
 
     /**
-     * @param ingredients  lista de ingredientes del producto
-     * @param totalWeightG suma de weightGrams de todos los ingredientes
-     * @param servingSizeG tamaño de porción en gramos (o mL)
+     * Calcula nutrición a partir de los campos por 100 g del producto.
+     *
+     * @param product producto con los campos nutricionales y serving_size_g
      * @return resultado del cálculo, o {@code null} si no hay datos nutricionales
      */
-    public NutritionCalculationResult calculate(
-            List<Ingredient> ingredients,
-            BigDecimal totalWeightG,
-            BigDecimal servingSizeG) {
+    public NutritionCalculationResult calculate(Product product) {
+        if (product.getServingSizeG() == null) return null;
+        if (!hasAnyNutrition(product)) return null;
 
-        // Acumular contribución de cada ingrediente
-        double energyKcal = 0, proteins = 0, carbs = 0, sugars = 0;
-        double fatTotal = 0, fatSat = 0, fatTrans = 0, sodium = 0;
-        boolean hasData = false;
+        double ss = product.getServingSizeG().doubleValue();
 
-        for (Ingredient i : ingredients) {
-            if (!hasAnyNutrition(i)) continue;
-            hasData = true;
+        double kcal   = nullToZero(product.getEnergyKcalPer100g());
+        double prot   = nullToZero(product.getProteinsPer100g());
+        double carbs  = nullToZero(product.getCarbsPer100g());
+        double sugars = nullToZero(product.getSugarsPer100g());
+        double fat    = nullToZero(product.getFatTotalPer100g());
+        double sat    = nullToZero(product.getFatSatPer100g());
+        double trans  = nullToZero(product.getFatTransPer100g());
+        double sodium = nullToZero(product.getSodiumMgPer100g());
 
-            double w = i.getWeightGrams().doubleValue() / 100.0;
-            energyKcal += nullToZero(i.getEnergyKcalPer100g()) * w;
-            proteins   += nullToZero(i.getProteinsPer100g())    * w;
-            carbs      += nullToZero(i.getCarbsPer100g())        * w;
-            sugars     += nullToZero(i.getSugarsPer100g())       * w;
-            fatTotal   += nullToZero(i.getFatTotalPer100g())     * w;
-            fatSat     += nullToZero(i.getFatSatPer100g())       * w;
-            fatTrans   += nullToZero(i.getFatTransPer100g())     * w;
-            sodium     += nullToZero(i.getSodiumMgPer100g())     * w;
-        }
+        // Valores por 100 g (raw, sin redondear)
+        NutritionValues raw100g = build(kcal, prot, carbs, sugars, fat, sat, trans, sodium);
 
-        if (!hasData) return null;
-
-        double tw = totalWeightG.doubleValue();
-        double ss = servingSizeG.doubleValue();
-
-        // Valores por 100 g del producto (sin redondear)
-        NutritionValues raw100g = build(
-                energyKcal / tw * 100,
-                proteins   / tw * 100,
-                carbs      / tw * 100,
-                sugars     / tw * 100,
-                fatTotal   / tw * 100,
-                fatSat     / tw * 100,
-                fatTrans   / tw * 100,
-                sodium     / tw * 100
-        );
-
-        // Valores por porción (sin redondear)
+        // Valores por porción = campo_por_100g × serving_size_g / 100
         NutritionValues rawPortion = build(
-                energyKcal / tw * ss,
-                proteins   / tw * ss,
-                carbs      / tw * ss,
-                sugars     / tw * ss,
-                fatTotal   / tw * ss,
-                fatSat     / tw * ss,
-                fatTrans   / tw * ss,
-                sodium     / tw * ss
+                kcal   * ss / 100,
+                prot   * ss / 100,
+                carbs  * ss / 100,
+                sugars * ss / 100,
+                fat    * ss / 100,
+                sat    * ss / 100,
+                trans  * ss / 100,
+                sodium * ss / 100
         );
 
         return new NutritionCalculationResult(
-                servingSizeG,
+                product.getServingSizeG(),
                 NutritionRounder.round(rawPortion),
                 NutritionRounder.round(raw100g),
                 raw100g
@@ -107,19 +75,14 @@ public class NutritionCalculatorService {
         return v == null ? 0.0 : v.doubleValue();
     }
 
-    /**
-     * Un ingrediente tiene datos nutricionales si al menos uno de sus campos
-     * por-100g es no nulo.  El usuario puede no haber cargado kcal pero sí
-     * proteínas, grasas y sodio, y eso es suficiente para incluirlo en el cálculo.
-     */
-    private static boolean hasAnyNutrition(Ingredient i) {
-        return i.getEnergyKcalPer100g() != null
-            || i.getProteinsPer100g()    != null
-            || i.getCarbsPer100g()       != null
-            || i.getSugarsPer100g()      != null
-            || i.getFatTotalPer100g()    != null
-            || i.getFatSatPer100g()      != null
-            || i.getFatTransPer100g()    != null
-            || i.getSodiumMgPer100g()    != null;
+    private static boolean hasAnyNutrition(Product p) {
+        return p.getEnergyKcalPer100g() != null
+            || p.getProteinsPer100g()   != null
+            || p.getCarbsPer100g()      != null
+            || p.getSugarsPer100g()     != null
+            || p.getFatTotalPer100g()   != null
+            || p.getFatSatPer100g()     != null
+            || p.getFatTransPer100g()   != null
+            || p.getSodiumMgPer100g()   != null;
     }
 }

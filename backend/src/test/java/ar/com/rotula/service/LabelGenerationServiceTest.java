@@ -188,7 +188,7 @@ class LabelGenerationServiceTest {
     private void mockBaseData() {
         Product product = Product.builder()
                 .id(PRODUCT_ID).tenantId(TENANT_ID)
-                .name("Producto Test").category("panificados")
+                .name("Producto Test").denomination("Galletitas")
                 .netWeight(BigDecimal.valueOf(500)).weightUnit("g")
                 .status("active")
                 .createdAt(OffsetDateTime.now()).updatedAt(OffsetDateTime.now())

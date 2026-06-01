@@ -64,20 +64,18 @@ class IngredientServiceTest {
                 .id(PRODUCT_ID)
                 .tenantId(TENANT_ID)
                 .name("Galletitas")
-                .category("Panificados")
                 .netWeight(new BigDecimal("200"))
                 .weightUnit("g")
+                .rnpaNumber("12345678")
                 .status("draft")
                 .createdAt(OffsetDateTime.now())
                 .updatedAt(OffsetDateTime.now())
                 .build();
     }
 
-    /** Crea un IngredientRequest sin datos nutricionales (campos opcionales en null). */
+    /** Crea un IngredientRequest simple. */
     private static IngredientRequest req(String name, BigDecimal weight, Boolean allergen) {
-        return new IngredientRequest(
-                name, weight, allergen,
-                null, null, null, null, null, null, null, null);
+        return new IngredientRequest(name, weight, allergen);
     }
 
     // ── findByProduct ────────────────────────────────────────────────────────
@@ -114,7 +112,7 @@ class IngredientServiceTest {
         when(productRepository.findByIdAndTenantId(PRODUCT_ID, TENANT_ID))
                 .thenReturn(Optional.of(sampleProduct()));
         when(ingredientRepository.findByProductIdAndTenantIdOrderByWeightGramsDesc(PRODUCT_ID, TENANT_ID))
-                .thenReturn(List.of(ing1, ing2));   // ya ordenados por weight DESC
+                .thenReturn(List.of(ing1, ing2));
 
         List<IngredientResponse> result = ingredientService.findByProduct(PRODUCT_ID);
 
@@ -162,48 +160,11 @@ class IngredientServiceTest {
         when(ingredientRepository.sumWeightGrams(PRODUCT_ID, TENANT_ID))
                 .thenReturn(new BigDecimal("100.000"));
 
-        // "avena" es alérgeno según Res. 109/2023
         ingredientService.create(PRODUCT_ID, req("Avena molida", new BigDecimal("100"), null));
 
         ArgumentCaptor<Ingredient> captor = ArgumentCaptor.forClass(Ingredient.class);
         verify(ingredientRepository).save(captor.capture());
         assertThat(captor.getValue().isAllergen()).isTrue();
-    }
-
-    @Test
-    void create_persiste_campos_nutricionales() {
-        when(productRepository.findByIdAndTenantId(PRODUCT_ID, TENANT_ID))
-                .thenReturn(Optional.of(sampleProduct()));
-        when(ingredientRepository.save(any())).thenReturn(sampleIngredient());
-        when(ingredientRepository.sumWeightGrams(PRODUCT_ID, TENANT_ID))
-                .thenReturn(new BigDecimal("200.000"));
-
-        IngredientRequest req = new IngredientRequest(
-                "Harina de trigo", new BigDecimal("200"), false,
-                new BigDecimal("364.00"),  // energyKcalPer100g
-                new BigDecimal("10.50"),   // proteinsPer100g
-                new BigDecimal("72.30"),   // carbsPer100g
-                new BigDecimal("1.20"),    // sugarsPer100g
-                new BigDecimal("2.10"),    // fatTotalPer100g
-                new BigDecimal("0.50"),    // fatSatPer100g
-                new BigDecimal("0.00"),    // fatTransPer100g
-                new BigDecimal("5.00")     // sodiumMgPer100g
-        );
-
-        ingredientService.create(PRODUCT_ID, req);
-
-        ArgumentCaptor<Ingredient> captor = ArgumentCaptor.forClass(Ingredient.class);
-        verify(ingredientRepository).save(captor.capture());
-        Ingredient saved = captor.getValue();
-
-        assertThat(saved.getEnergyKcalPer100g()).isEqualByComparingTo("364.00");
-        assertThat(saved.getProteinsPer100g()).isEqualByComparingTo("10.50");
-        assertThat(saved.getCarbsPer100g()).isEqualByComparingTo("72.30");
-        assertThat(saved.getSugarsPer100g()).isEqualByComparingTo("1.20");
-        assertThat(saved.getFatTotalPer100g()).isEqualByComparingTo("2.10");
-        assertThat(saved.getFatSatPer100g()).isEqualByComparingTo("0.50");
-        assertThat(saved.getFatTransPer100g()).isEqualByComparingTo("0.00");
-        assertThat(saved.getSodiumMgPer100g()).isEqualByComparingTo("5.00");
     }
 
     @Test
@@ -216,7 +177,6 @@ class IngredientServiceTest {
         when(ingredientRepository.sumWeightGrams(PRODUCT_ID, TENANT_ID))
                 .thenReturn(new BigDecimal("200.000"));
 
-        // aunque "trigo" es alérgeno, si el cliente envía allergen=false se respeta
         ingredientService.create(PRODUCT_ID, req("Harina de trigo", new BigDecimal("200"), false));
 
         ArgumentCaptor<Ingredient> captor = ArgumentCaptor.forClass(Ingredient.class);

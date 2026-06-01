@@ -34,7 +34,6 @@ public class IngredientService {
         List<Ingredient> ingredients = ingredientRepository
                 .findByProductIdAndTenantIdOrderByWeightGramsDesc(productId, user.getTenantId());
 
-        // Calcular total de pesos para derivar % de cada ingrediente
         BigDecimal total = ingredients.stream()
                 .map(Ingredient::getWeightGrams)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -57,17 +56,8 @@ public class IngredientService {
                 .name(req.name())
                 .weightGrams(req.weightGrams())
                 .allergen(resolveAllergen(req))
-                .energyKcalPer100g(req.energyKcalPer100g())
-                .proteinsPer100g(req.proteinsPer100g())
-                .carbsPer100g(req.carbsPer100g())
-                .sugarsPer100g(req.sugarsPer100g())
-                .fatTotalPer100g(req.fatTotalPer100g())
-                .fatSatPer100g(req.fatSatPer100g())
-                .fatTransPer100g(req.fatTransPer100g())
-                .sodiumMgPer100g(req.sodiumMgPer100g())
                 .build());
 
-        // Calcular % sobre el total actualizado (incluye el ingrediente recién guardado)
         BigDecimal total = ingredientRepository.sumWeightGrams(productId, user.getTenantId());
         return toResponse(saved, total);
     }
@@ -82,14 +72,6 @@ public class IngredientService {
         ingredient.setName(req.name());
         ingredient.setWeightGrams(req.weightGrams());
         ingredient.setAllergen(resolveAllergen(req));
-        ingredient.setEnergyKcalPer100g(req.energyKcalPer100g());
-        ingredient.setProteinsPer100g(req.proteinsPer100g());
-        ingredient.setCarbsPer100g(req.carbsPer100g());
-        ingredient.setSugarsPer100g(req.sugarsPer100g());
-        ingredient.setFatTotalPer100g(req.fatTotalPer100g());
-        ingredient.setFatSatPer100g(req.fatSatPer100g());
-        ingredient.setFatTransPer100g(req.fatTransPer100g());
-        ingredient.setSodiumMgPer100g(req.sodiumMgPer100g());
 
         Ingredient saved = ingredientRepository.save(ingredient);
 

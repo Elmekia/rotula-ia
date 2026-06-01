@@ -33,32 +33,6 @@ public class Ingredient {
     @Column(name = "is_allergen", nullable = false)
     private boolean allergen;
 
-    // ── Campos nutricionales por 100 g del ingrediente (todos opcionales) ─────
-
-    @Column(name = "energy_kcal_per100g", precision = 8, scale = 2)
-    private BigDecimal energyKcalPer100g;
-
-    @Column(name = "proteins_g_per100g", precision = 8, scale = 2)
-    private BigDecimal proteinsPer100g;
-
-    @Column(name = "carbs_g_per100g", precision = 8, scale = 2)
-    private BigDecimal carbsPer100g;
-
-    @Column(name = "sugars_g_per100g", precision = 8, scale = 2)
-    private BigDecimal sugarsPer100g;
-
-    @Column(name = "fat_total_g_per100g", precision = 8, scale = 2)
-    private BigDecimal fatTotalPer100g;
-
-    @Column(name = "fat_sat_g_per100g", precision = 8, scale = 2)
-    private BigDecimal fatSatPer100g;
-
-    @Column(name = "fat_trans_g_per100g", precision = 8, scale = 2)
-    private BigDecimal fatTransPer100g;
-
-    @Column(name = "sodium_mg_per100g", precision = 8, scale = 2)
-    private BigDecimal sodiumMgPer100g;
-
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
